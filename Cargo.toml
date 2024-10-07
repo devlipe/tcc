@@ -1,0 +1,17 @@
+[package]
+name = "tcc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+identity_iota = { version = "1.2.0", features = ["iota-client", "client", "memstore", "domain-linkage", "revocation-bitmap", "status-list-2021", "jpt-bbs-plus", "resolver"] }
+identity_stronghold = "1.4.0"
+iota-sdk = "1.1.5"
+rand = "0.8.5"
+serde_json = "1.0.128"
+tokio = "1.40.0"
+
+
+[lib]
+path = "src/utils/utils.rs"
