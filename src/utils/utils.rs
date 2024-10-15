@@ -28,8 +28,9 @@ use iota_sdk::types::block::address::Hrp;
 use rand::distributions::DistString;
 use serde_json::Value;
 
-pub static API_ENDPOINT: &str = "http://localhost";
-pub static FAUCET_ENDPOINT: &str = "http://localhost/faucet/api/enqueue";
+use super::config;
+use super::config::Config;
+
 
 pub type MemStorage = Storage<JwkMemStore, KeyIdMemstore>;
 
@@ -38,23 +39,27 @@ pub type MemStorage = Storage<JwkMemStore, KeyIdMemstore>;
 /// Its functionality is equivalent to the "create DID" example
 /// and exists for convenient calling from the other examples.
 pub async fn create_did(
-  client: &Client,
-  secret_manager: &mut SecretManager,
-  storage: &MemStorage,
+    client: &Client,
+    secret_manager: &mut SecretManager,
+    storage: &MemStorage,
+    faucet_endpoint: &str
 ) -> anyhow::Result<(Address, IotaDocument, String)> {
-  let address: Address = get_address_with_funds(client, secret_manager, FAUCET_ENDPOINT)
-    .await
-    .context("failed to get address with funds")?;
+    let address: Address = get_address_with_funds(client, secret_manager, faucet_endpoint)
+        .await
+        .context("failed to get address with funds")?;
 
-  let network_name: NetworkName = client.network_name().await?;
+    let network_name: NetworkName = client.network_name().await?;
 
-  let (document, fragment): (IotaDocument, String) = create_did_document(&network_name, storage).await?;
+    let (document, fragment): (IotaDocument, String) =
+        create_did_document(&network_name, storage).await?;
 
-  let alias_output: AliasOutput = client.new_did_output(address, document, None).await?;
+    let alias_output: AliasOutput = client.new_did_output(address, document, None).await?;
 
-  let document: IotaDocument = client.publish_did_output(secret_manager, alias_output).await?;
+    let document: IotaDocument = client
+        .publish_did_output(secret_manager, alias_output)
+        .await?;
 
-  Ok((address, document, fragment))
+    Ok((address, document, fragment))
 }
 
 /// Creates an example DID document with the given `network_name`.
@@ -62,126 +67,151 @@ pub async fn create_did(
 /// Its functionality is equivalent to the "create DID" example
 /// and exists for convenient calling from the other examples.
 pub async fn create_did_document(
-  network_name: &NetworkName,
-  storage: &MemStorage,
+    network_name: &NetworkName,
+    storage: &MemStorage,
 ) -> anyhow::Result<(IotaDocument, String)> {
-  let mut document: IotaDocument = IotaDocument::new(network_name);
+    let mut document: IotaDocument = IotaDocument::new(network_name);
 
-  let fragment: String = document
-    .generate_method(
-      storage,
-      JwkMemStore::ED25519_KEY_TYPE,
-      JwsAlgorithm::EdDSA,
-      None,
-      MethodScope::VerificationMethod,
-    )
-    .await?;
+    let fragment: String = document
+        .generate_method(
+            storage,
+            JwkMemStore::ED25519_KEY_TYPE,
+            JwsAlgorithm::EdDSA,
+            None,
+            MethodScope::VerificationMethod,
+        )
+        .await?;
 
-  Ok((document, fragment))
+    Ok((document, fragment))
 }
 
 /// Generates an address from the given [`SecretManager`] and adds funds from the faucet.
 pub async fn get_address_with_funds(
-  client: &Client,
-  stronghold: &SecretManager,
-  faucet_endpoint: &str,
+    client: &Client,
+    stronghold: &SecretManager,
+    faucet_endpoint: &str,
 ) -> anyhow::Result<Address> {
-  let address: Bech32Address = get_address(client, stronghold).await?;
+    let address: Bech32Address = get_address(client, stronghold).await?;
 
-  request_faucet_funds(client, address, faucet_endpoint)
-    .await
-    .context("failed to request faucet funds")?;
+    request_faucet_funds(client, address, faucet_endpoint)
+        .await
+        .context("failed to request faucet funds")?;
 
-  Ok(*address)
+    Ok(*address)
 }
 
 /// Initializes the [`SecretManager`] with a new mnemonic, if necessary,
 /// and generates an address from the given [`SecretManager`].
-pub async fn get_address(client: &Client, secret_manager: &SecretManager) -> anyhow::Result<Bech32Address> {
-  let random: [u8; 32] = rand::random();
-  let mnemonic = bip39::wordlist::encode(random.as_ref(), &bip39::wordlist::ENGLISH)
-    .map_err(|err| anyhow::anyhow!(format!("{err:?}")))?;
+pub async fn get_address(
+    client: &Client,
+    secret_manager: &SecretManager,
+) -> anyhow::Result<Bech32Address> {
+    let random: [u8; 32] = rand::random();
+    let mnemonic = bip39::wordlist::encode(random.as_ref(), &bip39::wordlist::ENGLISH)
+        .map_err(|err| anyhow::anyhow!(format!("{err:?}")))?;
 
-  if let SecretManager::Stronghold(ref stronghold) = secret_manager {
-    match stronghold.store_mnemonic(mnemonic).await {
-      Ok(()) => (),
-      Err(iota_sdk::client::stronghold::Error::MnemonicAlreadyStored) => (),
-      Err(err) => anyhow::bail!(err),
+    if let SecretManager::Stronghold(ref stronghold) = secret_manager {
+        match stronghold.store_mnemonic(mnemonic).await {
+            Ok(()) => (),
+            Err(iota_sdk::client::stronghold::Error::MnemonicAlreadyStored) => (),
+            Err(err) => anyhow::bail!(err),
+        }
+    } else {
+        anyhow::bail!("expected a `StrongholdSecretManager`");
     }
-  } else {
-    anyhow::bail!("expected a `StrongholdSecretManager`");
-  }
 
-  let bech32_hrp: Hrp = client.get_bech32_hrp().await?;
-  let address: Bech32Address = secret_manager
-    .generate_ed25519_addresses(
-      GetAddressesOptions::default()
-        .with_range(0..1)
-        .with_bech32_hrp(bech32_hrp),
-    )
-    .await?[0];
+    let bech32_hrp: Hrp = client.get_bech32_hrp().await?;
+    let address: Bech32Address = secret_manager
+        .generate_ed25519_addresses(
+            GetAddressesOptions::default()
+                .with_range(0..1)
+                .with_bech32_hrp(bech32_hrp),
+        )
+        .await?[0];
 
-  Ok(address)
+    Ok(address)
 }
 
 /// Requests funds from the faucet for the given `address`.
-async fn request_faucet_funds(client: &Client, address: Bech32Address, faucet_endpoint: &str) -> anyhow::Result<()> {
-  iota_sdk::client::request_funds_from_faucet(faucet_endpoint, &address).await?;
+async fn request_faucet_funds(
+    client: &Client,
+    address: Bech32Address,
+    faucet_endpoint: &str,
+) -> anyhow::Result<()> {
+    iota_sdk::client::request_funds_from_faucet(faucet_endpoint, &address).await?;
 
-  tokio::time::timeout(std::time::Duration::from_secs(45), async {
-    loop {
-      tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    tokio::time::timeout(std::time::Duration::from_secs(45), async {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
-      let balance = get_address_balance(client, &address)
-        .await
-        .context("failed to get address balance")?;
-      if balance > 0 {
-        break;
-      }
-    }
-    Ok::<(), anyhow::Error>(())
-  })
-  .await
-  .context("maximum timeout exceeded")??;
+            let balance = get_address_balance(client, &address)
+                .await
+                .context("failed to get address balance")?;
+            if balance > 0 {
+                break;
+            }
+        }
+        Ok::<(), anyhow::Error>(())
+    })
+    .await
+    .context("maximum timeout exceeded")??;
 
-  Ok(())
+    Ok(())
 }
 
 /// Returns the balance of the given Bech32-encoded `address`.
 async fn get_address_balance(client: &Client, address: &Bech32Address) -> anyhow::Result<u64> {
-  let output_ids = client
-    .basic_output_ids(vec![
-      QueryParameter::Address(address.to_owned()),
-      QueryParameter::HasExpiration(false),
-      QueryParameter::HasTimelock(false),
-      QueryParameter::HasStorageDepositReturn(false),
-    ])
-    .await?;
+    let output_ids = client
+        .basic_output_ids(vec![
+            QueryParameter::Address(address.to_owned()),
+            QueryParameter::HasExpiration(false),
+            QueryParameter::HasTimelock(false),
+            QueryParameter::HasStorageDepositReturn(false),
+        ])
+        .await?;
 
-  let outputs = client.get_outputs(&output_ids).await?;
+    let outputs = client.get_outputs(&output_ids).await?;
 
-  let mut total_amount = 0;
-  for output_response in outputs {
-    total_amount += output_response.output().amount();
-  }
+    let mut total_amount = 0;
+    for output_response in outputs {
+        total_amount += output_response.output().amount();
+    }
 
-  Ok(total_amount)
+    Ok(total_amount)
 }
 
 /// Creates a random stronghold path in the temporary directory, whose exact location is OS-dependent.
-pub fn random_stronghold_path() -> PathBuf {
-  let mut file = std::env::temp_dir();
-  file.push("test_strongholds");
-  file.push(rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 32));
-  file.set_extension("stronghold");
-  file.to_owned()
+pub fn random_stronghold_path(config: &config::VariablesConfig) -> PathBuf {
+    let mut file = std::path::PathBuf::from(config.get_value("stronghold_path"));
+    file.push("test_strongholds");
+    file.push(rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 32));
+    file.set_extension("stronghold");
+    file.to_owned()
 }
 
 pub fn pretty_print_json(label: &str, value: &str) {
-  let data: Value = serde_json::from_str(value).unwrap();
-  let pretty_json = serde_json::to_string_pretty(&data).unwrap();
-  println!("--------------------------------------");
-  println!("{}:", label);
-  println!("--------------------------------------");
-  println!("{} \n", pretty_json);
+    let data: Value = serde_json::from_str(value).unwrap();
+    let pretty_json = serde_json::to_string_pretty(&data).unwrap();
+    println!("--------------------------------------");
+    println!("{}:", label);
+    println!("--------------------------------------");
+    println!("{} \n", pretty_json);
+}
+
+pub fn extract_kid(resolved_document: &IotaDocument) -> Result<String, anyhow::Error> {
+    // Attempt to resolve the verification method
+    let binding = resolved_document
+        .methods(Some(MethodScope::VerificationMethod));
+    
+    let method = binding
+        .first()
+        .ok_or(anyhow::anyhow!("Methods not Found")).unwrap(); // Handle case where method is None
+
+    // Attempt to extract the public key JWK
+    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided")).unwrap(); // Handle case where JWK is None
+
+    // Attempt to extract the kid
+    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded")).unwrap(); // Handle case where kid is None
+
+    Ok(kid.to_string()) // Return the kid as a String
 }

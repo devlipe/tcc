@@ -8,6 +8,7 @@
 # Ignore generated files from tests
 /tests/**/*.rs.bk
 /tests/output
+/stronghold
 
 # Ignore backup files created by editors
 *.swp
@@ -16,6 +17,7 @@
 *.tmp
 *.old
 *.orig
+.env
 
 # Ignore IDE and editor-specific files
 /.idea/

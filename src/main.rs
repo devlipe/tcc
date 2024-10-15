@@ -1,86 +1,154 @@
 // Copyright 2020-2023 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+use core::error;
+use std::fs;
+use std::path::Path;
+
+use identity_eddsa_verifier::EdDSAJwsVerifier;
+use identity_iota::core::FromJson;
+use identity_iota::core::ToJson;
+use identity_iota::credential::Jws;
+use identity_iota::document;
+use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::iota::IotaClientExt;
 use identity_iota::iota::IotaDocument;
 use identity_iota::iota::IotaIdentityClientExt;
 use identity_iota::iota::NetworkName;
+use identity_iota::prelude::Resolver;
 use identity_iota::storage::JwkDocumentExt;
 use identity_iota::storage::JwkMemStore;
-use identity_iota::storage::KeyIdMemstore;
+use identity_iota::storage::JwsSignatureOptions;
+use identity_iota::storage::Storage;
+use identity_iota::verification::jws::DecodedJws;
 use identity_iota::verification::jws::JwsAlgorithm;
 use identity_iota::verification::MethodScope;
+use identity_iota::verification::VerificationMethod;
+use identity_stronghold::StrongholdStorage;
 use iota_sdk::client::secret::stronghold::StrongholdSecretManager;
-use iota_sdk::client::secret::SecretManager;
+
 use iota_sdk::client::Client;
 use iota_sdk::client::Password;
 use iota_sdk::types::block::address::Address;
 use iota_sdk::types::block::output::AliasOutput;
-use tcc::get_address_with_funds;
-use tcc::random_stronghold_path;
-use tcc::MemStorage;
+use tcc::extract_kid;
+use tcc::Config;
+use tcc::VariablesConfig;
 
-/// Demonstrates how to create a DID Document and publish it in a new Alias Output.
-///
-/// In this example we connect to a locally running private network, but it can be adapted
-/// to run on any IOTA node by setting the network and faucet endpoints.
-///
-/// See the following instructions on running your own private network
-/// https://github.com/iotaledger/hornet/tree/develop/private_tangle
+
+
+
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // The API endpoint of an IOTA node, e.g. Hornet.
-    let api_endpoint: &str = "http://localhost";
+    let config = VariablesConfig::get();
 
-    // The faucet endpoint allows requesting funds for testing purposes.
-    let faucet_endpoint: &str = "http://localhost/faucet/api/enqueue";
+    // Stronghold password.
+    let password = Password::from(config.get_value("stronghold_password").to_owned());
+    // Stronghold snapshot path.
+    let path: std::path::PathBuf = std::path::PathBuf::from(config.get_value("stronghold_path").to_owned());
 
-    // Create a new client to interact with the IOTA ledger.
     let client: Client = Client::builder()
-        .with_primary_node(api_endpoint, None)?
+        .with_primary_node(config.get_value("api_endpoint"), None)?
         .finish()
         .await?;
 
-    // Create a new secret manager backed by a Stronghold.
-    let secret_manager: SecretManager = SecretManager::Stronghold(
-        StrongholdSecretManager::builder()
-            .password(Password::from("secure_password".to_owned()))
-            .build(random_stronghold_path())?,
-    );
+    let stronghold = StrongholdSecretManager::builder()
+        .password(password.clone())
+        .build(path.clone())?;
 
-    // Get an address with funds for testing.
-    let address: Address =
-        get_address_with_funds(&client, &secret_manager, faucet_endpoint).await?;
+    // Create a `StrongholdStorage`.
+    // `StrongholdStorage` creates internally a `SecretManager` that can be
+    // referenced to avoid creating multiple instances around the same stronghold snapshot.
+    let stronghold_storage = StrongholdStorage::new(stronghold);
 
-    // Get the Bech32 human-readable part (HRP) of the network.
-    let network_name: NetworkName = client.network_name().await?;
+    // Create a DID document.
+    // let address: Address = get_address_with_funds(
+    //     &client,
+    //     stronghold_storage.as_secret_manager(),
+    //     config.faucet_endpoint(),
+    // )
+    // .await?;
+    // let network_name: NetworkName = client.network_name().await?;
+    // let mut document: IotaDocument = IotaDocument::new(&network_name);
 
-    // Create a new DID document with a placeholder DID.
-    // The DID will be derived from the Alias Id of the Alias Output after publishing.
-    let mut document: IotaDocument = IotaDocument::new(&network_name);
+    // Create storage for key-ids and JWKs.
+    
+    // In this example, the same stronghold file that is used to store
+    // key-ids as well as the JWKs.
+    let storage = Storage::new(stronghold_storage.clone(), stronghold_storage.clone());
 
-    // Insert a new Ed25519 verification method in the DID document.
-    let storage: MemStorage = MemStorage::new(JwkMemStore::new(), KeyIdMemstore::new());
-    document
-        .generate_method(
-            &storage,
-            JwkMemStore::ED25519_KEY_TYPE,
-            JwsAlgorithm::EdDSA,
-            None,
-            MethodScope::VerificationMethod,
-        )
-        .await?;
+    // Generates a verification method. This will store the key-id as well as the private key
+    // in the stronghold file.
+    // let fragment = document
+    //     .generate_method(
+    //         &storage,
+    //         JwkMemStore::ED25519_KEY_TYPE,
+    //         JwsAlgorithm::EdDSA,
+    //         None,
+    //         MethodScope::VerificationMethod,
+    //     )
+    //     .await?;
 
     // Construct an Alias Output containing the DID document, with the wallet address
     // set as both the state controller and governor.
-    let alias_output: AliasOutput = client.new_did_output(address, document, None).await?;
+    // let alias_output: AliasOutput = client.new_did_output(address, document, None).await?;
 
     // Publish the Alias Output and get the published DID document.
-    let document: IotaDocument = client
-        .publish_did_output(&secret_manager, alias_output)
+    // let document: IotaDocument = client
+    //     .publish_did_output(stronghold_storage.as_secret_manager(), alias_output)
+    //     .await?;
+
+    // println!("{}", &document.to_json().unwrap());
+
+    // save the document to a file
+    let did_file_issuer = "issuer.did";
+
+    let doc = if Path::new("issuer.did").exists() {
+        // Load DID from file
+        let did_data = fs::read_to_string(did_file_issuer)?;
+        IotaDocument::from_json(&did_data)?
+    } else {
+        panic!("DID file not found");
+    };
+
+
+
+    // Resolve the published DID Document.
+    let mut resolver = Resolver::<IotaDocument>::new();
+    resolver.attach_iota_handler(client.clone());
+    let resolved_document: IotaDocument = resolver.resolve(doc.id()).await.unwrap();
+
+    // Retrieve the verification method fragment.
+    let fragment = extract_kid(&resolved_document).unwrap();
+    
+
+
+
+    println!("{}", fragment);
+    // print resolved document
+    println!("{:#}", resolved_document);
+
+
+    // Sign data with the created verification method.
+    let data = b"test_data";
+    let jws: Jws = resolved_document
+        .create_jws(&storage, &fragment, data, &JwsSignatureOptions::default())
         .await?;
-    println!("Published DID document: {document:#}");
+
+    // Verify Signature.
+    let decoded_jws: DecodedJws = resolved_document.verify_jws(
+        &jws,
+        None,
+        &EdDSAJwsVerifier::default(),
+        &JwsVerificationOptions::default(),
+    )?;
+
+    assert_eq!(
+        String::from_utf8_lossy(decoded_jws.claims.as_ref()),
+        "test_data"
+    );
 
     Ok(())
 }
