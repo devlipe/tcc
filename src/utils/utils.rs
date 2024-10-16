@@ -199,19 +199,17 @@ pub fn pretty_print_json(label: &str, value: &str) {
 }
 
 pub fn extract_kid(resolved_document: &IotaDocument) -> Result<String, anyhow::Error> {
-    // Attempt to resolve the verification method
+
     let binding = resolved_document
         .methods(Some(MethodScope::VerificationMethod));
     
     let method = binding
         .first()
-        .ok_or(anyhow::anyhow!("Methods not Found")).unwrap(); // Handle case where method is None
+        .ok_or(anyhow::anyhow!("Methods not Found")).unwrap(); 
 
-    // Attempt to extract the public key JWK
-    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided")).unwrap(); // Handle case where JWK is None
+    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided")).unwrap(); 
 
-    // Attempt to extract the kid
-    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded")).unwrap(); // Handle case where kid is None
+    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded")).unwrap(); 
 
-    Ok(kid.to_string()) // Return the kid as a String
+    Ok(kid.to_string())
 }

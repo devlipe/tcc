@@ -1,44 +1,25 @@
-// Copyright 2020-2023 IOTA Stiftung
-// SPDX-License-Identifier: Apache-2.0
-
-use core::error;
 use std::fs;
 use std::path::Path;
 
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::FromJson;
-use identity_iota::core::ToJson;
 use identity_iota::credential::Jws;
-use identity_iota::document;
 use identity_iota::document::verifiable::JwsVerificationOptions;
-use identity_iota::iota::IotaClientExt;
 use identity_iota::iota::IotaDocument;
-use identity_iota::iota::IotaIdentityClientExt;
-use identity_iota::iota::NetworkName;
 use identity_iota::prelude::Resolver;
 use identity_iota::storage::JwkDocumentExt;
-use identity_iota::storage::JwkMemStore;
 use identity_iota::storage::JwsSignatureOptions;
 use identity_iota::storage::Storage;
 use identity_iota::verification::jws::DecodedJws;
-use identity_iota::verification::jws::JwsAlgorithm;
-use identity_iota::verification::MethodScope;
-use identity_iota::verification::VerificationMethod;
+
 use identity_stronghold::StrongholdStorage;
 use iota_sdk::client::secret::stronghold::StrongholdSecretManager;
 
 use iota_sdk::client::Client;
 use iota_sdk::client::Password;
-use iota_sdk::types::block::address::Address;
-use iota_sdk::types::block::output::AliasOutput;
-use tcc::extract_kid;
 use tcc::Config;
+use tcc::SQLiteConnector;
 use tcc::VariablesConfig;
-
-
-
-
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,7 +28,26 @@ async fn main() -> anyhow::Result<()> {
     // Stronghold password.
     let password = Password::from(config.get_value("stronghold_password").to_owned());
     // Stronghold snapshot path.
-    let path: std::path::PathBuf = std::path::PathBuf::from(config.get_value("stronghold_path").to_owned());
+    let stronghold_path: std::path::PathBuf =
+        std::path::PathBuf::from(config.get_value("stronghold_path").to_owned());
+    // Sqlite path.
+    let sqlite_path = config.get_value("sqlite_path");
+
+    // Use match to handle the result of SQLiteConnector::new
+    let sqlite = match SQLiteConnector::new(sqlite_path) {
+        Ok(conn) => conn, // Successfully created the connection
+        Err(e) => {
+            // Handle the error, for example, by printing it
+            eprintln!("Failed to connect to the database: {}", e);
+            return Err(e); // Propagate the error
+        }
+    };
+
+    tcc::create_did_table(&sqlite)?;
+    
+    return Ok(());
+
+    // Create a new client instance.
 
     let client: Client = Client::builder()
         .with_primary_node(config.get_value("api_endpoint"), None)?
@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
 
     let stronghold = StrongholdSecretManager::builder()
         .password(password.clone())
-        .build(path.clone())?;
+        .build(stronghold_path.clone())?;
 
     // Create a `StrongholdStorage`.
     // `StrongholdStorage` creates internally a `SecretManager` that can be
@@ -74,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
     // let mut document: IotaDocument = IotaDocument::new(&network_name);
 
     // Create storage for key-ids and JWKs.
-    
+
     // In this example, the same stronghold file that is used to store
     // key-ids as well as the JWKs.
     let storage = Storage::new(stronghold_storage.clone(), stronghold_storage.clone());
@@ -113,23 +113,17 @@ async fn main() -> anyhow::Result<()> {
         panic!("DID file not found");
     };
 
-
-
     // Resolve the published DID Document.
     let mut resolver = Resolver::<IotaDocument>::new();
     resolver.attach_iota_handler(client.clone());
-    let resolved_document: IotaDocument = resolver.resolve(doc.id()).await.unwrap();
+    let resolved_document: IotaDocument = resolver.resolve(doc.id()).await?;
 
     // Retrieve the verification method fragment.
-    let fragment = extract_kid(&resolved_document).unwrap();
-    
-
-
+    let fragment = tcc::extract_kid(&resolved_document)?;
 
     println!("{}", fragment);
     // print resolved document
     println!("{:#}", resolved_document);
-
 
     // Sign data with the created verification method.
     let data = b"test_data";

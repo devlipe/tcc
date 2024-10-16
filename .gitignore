@@ -8,7 +8,6 @@
 # Ignore generated files from tests
 /tests/**/*.rs.bk
 /tests/output
-/stronghold
 
 # Ignore backup files created by editors
 *.swp

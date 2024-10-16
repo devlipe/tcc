@@ -36,6 +36,10 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
                 "stronghold_path".to_string(),
                 env::var("STRONGHOLD_VAULT_PATH").expect("STRONGHOLD_VAULT_PATH must be set"),
             ),
+            (
+                "sqlite_path".to_string(),
+                env::var("SQLITE_PATH").unwrap_or_default(),
+            ),
         ]),
     }
 });
@@ -51,4 +55,3 @@ impl Config for VariablesConfig {
         self.config.get(key).expect("Key not found")
     }
 }
-
