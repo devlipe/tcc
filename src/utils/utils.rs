@@ -205,11 +205,11 @@ pub fn extract_kid(resolved_document: &IotaDocument) -> Result<String, anyhow::E
     
     let method = binding
         .first()
-        .ok_or(anyhow::anyhow!("Methods not Found")).unwrap(); 
+        .ok_or(anyhow::anyhow!("Methods not Found"))?; 
 
-    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided")).unwrap(); 
+    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided"))?; 
 
-    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded")).unwrap(); 
+    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded"))?; 
 
     Ok(kid.to_string())
 }

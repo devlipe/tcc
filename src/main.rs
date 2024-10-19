@@ -17,7 +17,7 @@ use iota_sdk::client::secret::stronghold::StrongholdSecretManager;
 
 use iota_sdk::client::Client;
 use iota_sdk::client::Password;
-use tcc::Config;
+use tcc::{Config, DBConnector};
 use tcc::SQLiteConnector;
 use tcc::VariablesConfig;
 
@@ -43,9 +43,14 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    tcc::create_did_table(&sqlite)?;
+    for a in sqlite.get_stored_dids()? {
+        println!("{:?}", a);
+    }
     
     return Ok(());
+
+    tcc::create_did_table(&sqlite).expect("Table creation failed");
+    
 
     // Create a new client instance.
 
@@ -117,6 +122,12 @@ async fn main() -> anyhow::Result<()> {
     let mut resolver = Resolver::<IotaDocument>::new();
     resolver.attach_iota_handler(client.clone());
     let resolved_document: IotaDocument = resolver.resolve(doc.id()).await?;
+    
+    sqlite.save_did_document(&resolved_document, String::from("Felipe"))?;
+    
+    return Ok(());
+    
+    
 
     // Retrieve the verification method fragment.
     let fragment = tcc::extract_kid(&resolved_document)?;
