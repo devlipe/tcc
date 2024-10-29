@@ -17,13 +17,17 @@ use iota_sdk::client::secret::stronghold::StrongholdSecretManager;
 
 use iota_sdk::client::Client;
 use iota_sdk::client::Password;
-use tcc::{Config, DBConnector};
+use tcc::{Config, DBConnector, Output};
 use tcc::SQLiteConnector;
 use tcc::VariablesConfig;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = VariablesConfig::get();
+    let output = Output;
+
+    output.show_welcome_message();
+
 
     // Stronghold password.
     let password = Password::from(config.get_value("stronghold_password").to_owned());
@@ -42,10 +46,22 @@ async fn main() -> anyhow::Result<()> {
             return Err(e); // Propagate the error
         }
     };
-
-    for a in sqlite.get_stored_dids()? {
-        println!("{:?}", a);
-    }
+    
+    // let dids = sqlite.get_stored_dids()?;
+    // 
+    
+    // // every time enter is pressed, print "Hello World"
+    // let mut input = String::new();
+    // while input.trim() != "exit" {
+    //     input.clear();
+    //     std::io::stdin().read_line(&mut input)?;
+    //     for a in &dids {
+    //         println!("{:?}", a);
+    //     }
+    //     output.clear_screen()
+    // }
+    
+    
     
     return Ok(());
 
