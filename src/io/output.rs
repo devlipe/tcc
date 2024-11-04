@@ -6,18 +6,13 @@
 use std::io;
 use std::io::{stdout, Write};
 use crossterm::execute;
-use crossterm::style::{Color, Stylize};
 use crossterm::terminal::ClearType;
 use users::{get_current_uid, get_user_by_uid};
+use colored::*;
 
 pub struct Output;
 
 impl Output {
-    
-    // Print the output of the program.
-    pub fn print_output(&self, output: String) {
-        println!("{}", output);
-    }
     
     //Clear the screen
     pub fn clear_screen(&self) {
@@ -34,19 +29,18 @@ impl Output {
             .unwrap_or_else(|| "fellow user".to_string());
 
         // Print the welcome message with colors
-        println!("{} {}", "Hello, {}!\n".yellow(), user_name);
-        println!("This is a simple stocks selector. It works by sorting and ranking stocks by ROA, EV/Edit, and P/L.\n");
-        println!("{:?}\tDeveloped by: https://github.com/devlipe", Color::Green);
-        println!("\tOn April 10th, 2022");
-        println!("\tVersion 1.0.0{:?}", Color::Reset);
+        println!("{}", format!("Welcome to the Petrus, {}!", user_name).bold().yellow());
+        println!("This is a Proof Of Concept (POC) designed and created for the final project of the student Felipe Ferreira - 102017\n");
+        println!("{}", "\tDeveloped by: https://github.com/devlipe".green());
+        println!("{}", "\tOn October 7th, 2024".green());
+        println!("{}", "\tVersion 1.0.0".green());
 
         // Prompt to continue
-        print!("{:?}Press enter to continue...{:?}", Color::Red, Color::Reset);
+        print!("Press enter to continue...");
         stdout().flush().unwrap_or_default(); // Ensure prompt message is printed immediately
 
         // Wait for user input to continue
         let mut trash = String::new();
         io::stdin().read_line(&mut trash).unwrap_or_default();
-        
     }
 }
