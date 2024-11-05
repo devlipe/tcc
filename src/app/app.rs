@@ -1,14 +1,16 @@
+use crate::{AppContext, Command, CreateDIDCommand, CreateVCCommand, MainMenuCommand, ScreenFSM, ScreenState, VerifyVCCommand};
 use rust_fsm::StateMachine;
-use crate::{Command, ScreenState, MainMenuCommand, CreateDIDCommand, CreateVCCommand, VerifyVCCommand, ScreenFSM};
 
 pub struct App {
     fsm: StateMachine<ScreenFSM>,
+    context: AppContext,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(context: AppContext) -> Self {
         App {
             fsm: StateMachine::new(),
+            context
         }
     }
 
@@ -25,7 +27,7 @@ impl App {
             };
 
             // Execute the command and get the resulting event
-            let event = command.execute();
+            let event = command.execute(&self.context);
 
             // Update state based on event
             let _output = self.fsm.consume(&event).unwrap();

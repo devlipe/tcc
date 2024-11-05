@@ -4,7 +4,6 @@ use std::{collections::HashMap, env};
 
 // Trait definition for configuration management
 pub trait Config {
-    fn get() -> &'static Self; // All configs must be singletons
     fn get_value(&self, key: &str) -> &String;
 }
 
@@ -13,6 +12,7 @@ pub struct VariablesConfig {
     // Store configuration in a key-value manner using a HashMap
     config: HashMap<String, String>,
 }
+
 
 // Singleton instance of VariablesConfig
 static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
@@ -44,11 +44,15 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
     }
 });
 
-// Implementation of the Config trait for VariablesConfig
-impl Config for VariablesConfig {
-    fn get() -> &'static Self {
+impl VariablesConfig {
+    pub fn get() -> &'static Self {
         &CONFIG
     }
+}
+
+// Implementation of the Config trait for VariablesConfig
+impl Config for VariablesConfig {
+
 
     fn get_value(&self, key: &str) -> &String {
         // Verify if the key exists and return the value

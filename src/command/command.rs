@@ -1,5 +1,5 @@
-use crate::ScreenEvent;
+use crate::{AppContext, ScreenEvent};
 
 pub trait Command{
-    fn execute(&mut self) -> ScreenEvent;
+    fn execute(&mut self, context: &AppContext) -> ScreenEvent;
 }

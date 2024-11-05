@@ -87,3 +87,11 @@ impl DBConnector for SQLiteConnector{
     
 }
 
+// Implement Default for SQLiteConnector
+impl Default for SQLiteConnector {
+    fn default() -> Self {
+        // Use new() with an empty string to create an in-memory database connection
+        SQLiteConnector::new("").expect("Failed to create in-memory SQLite connection")
+    }
+}
+
