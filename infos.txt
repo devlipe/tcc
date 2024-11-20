@@ -26,3 +26,4 @@ DID:
         "stateControllerAddress": "tst1qptcmug9clsd27evnq4mv33qecpvu398hql549wvnnn7u46pqhmxy5dkjml"
     }
 }
+
