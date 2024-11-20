@@ -1,8 +1,9 @@
-use crate::{Config, DBConnector, SQLiteConnector, VariablesConfig};
+use crate::{Config, DBConnector, Output, SQLiteConnector, VariablesConfig};
 use identity_iota::storage::Storage;
 use identity_stronghold::StrongholdStorage;
 use iota_sdk::client::{Client, Password};
 use iota_sdk::client::secret::stronghold::StrongholdSecretManager;
+use tokio::sync::watch;
 
 pub struct AppContext {
     pub tangle_client: Client,
@@ -12,6 +13,23 @@ pub struct AppContext {
 }
 
 impl AppContext {
+
+    pub async fn build_app_context_with_loading() -> Self {
+        let (tx , rx)= watch::channel(true);
+        // Spawn the loading animation as a background task
+        let animation_handle = tokio::spawn(Output::loading_animation(rx));
+
+        let context = AppContext::my_app_context().await;
+
+        // Signal the animation to stop
+        let _ = tx.send(false);
+
+        // Wait for the animation task to finish
+        animation_handle.await.unwrap();
+        
+        context
+    }
+    
     pub async fn my_app_context() -> Self {
 
         let config = VariablesConfig::get();

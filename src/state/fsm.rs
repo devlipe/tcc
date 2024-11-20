@@ -1,24 +1,6 @@
 
 use rust_fsm::{StateMachineImpl};
-
-#[derive(Clone, Debug)]
-pub enum ScreenState {
-    MainMenu,
-    CreateDIDWorkflow,
-    CreateVCWorkflow,
-    VerifyVCWorkflow,
-    
-}
-
-#[derive(Clone, Debug)]
-pub enum ScreenEvent {
-    SelectCreateDID,
-    SelectCreateVC,
-    SelectVerifyVC,
-    Cancel,
-    Success,
-}
-
+use crate::{ScreenEvent, ScreenState};
 
 pub struct ScreenFSM;
 
@@ -38,7 +20,7 @@ impl StateMachineImpl for ScreenFSM{
             
             
              // Exit the program
-            (ScreenState::MainMenu, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),
+            (ScreenState::MainMenu, ScreenEvent::Cancel) => Some(ScreenState::ExitAppWorkflow),
             
             
             // In case of cancel, return to the main menu

@@ -20,6 +20,7 @@ chrono = "0.4.38"
 users = "0.11.0"
 colored = "2.1.0"
 rust-fsm = "0.7.0"
+termion = "4.0.3"
 
 
 [lib]

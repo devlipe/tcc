@@ -3,28 +3,30 @@
 // Create a class that will handle the output of the program.
 // This class will be used to print the output of the program.
 
-use std::io;
-use std::io::{stdout, Write};
+use colored::*;
 use crossterm::execute;
 use crossterm::terminal::ClearType;
+use std::io::{stdout, Write};
+
+use tokio::sync::watch;
+use tokio::time::{sleep, Duration};
 use users::{get_current_uid, get_user_by_uid};
-use colored::*;
 
 pub struct Output;
 
 impl Output {
     
     //Clear the screen
-    pub fn clear_screen(&self) {
+    pub fn clear_screen() {
         execute!(stdout(), crossterm::terminal::Clear(ClearType::All)).unwrap();
     }
 
-    pub fn show_welcome_message(&self) {
+    pub fn show_welcome_message() {
         // Clear the screen
-        self.clear_screen();
+        Self::clear_screen();
 
         // Get the current user or set to "fellow user" if not found
-        let user_name = get_user_by_uid(get_current_uid())
+        let user_name: String = get_user_by_uid(get_current_uid())
             .map(|user| user.name().to_string_lossy().into_owned())
             .unwrap_or_else(|| "fellow user".to_string());
 
@@ -35,12 +37,27 @@ impl Output {
         println!("{}", "\tOn October 7th, 2024".green());
         println!("{}", "\tVersion 1.0.0".green());
 
-        // Prompt to continue
-        print!("Press enter to continue...");
         stdout().flush().unwrap_or_default(); // Ensure prompt message is printed immediately
 
-        // Wait for user input to continue
-        let mut trash = String::new();
-        io::stdin().read_line(&mut trash).unwrap_or_default();
+    }
+    
+    pub async fn loading_animation(mut rx: watch::Receiver<bool>) {
+        let braille_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+        while *rx.borrow() {
+            // Adjust the range to control how long the animation runs
+            for &frame in &braille_frames {
+                print!("\r{} Loading ", frame); // `\r` moves the cursor to the start of the line
+                stdout().flush().unwrap();
+                sleep(Duration::from_millis(100)).await;
+            }
+            
+        }
+    }
+    pub fn print_screen_title(title: &str) {
+        println!("{}", title.bold().blue());
+        // Print 2 blank lines
+        println!("\n");
+        println!("\n");
     }
 }

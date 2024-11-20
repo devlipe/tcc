@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, ScreenEvent};
+use crate::{AppContext, Command, Output, ScreenEvent};
 
 pub struct CreateDIDCommand;
 
@@ -7,5 +7,10 @@ impl Command for CreateDIDCommand {
         println!("CreateDidCommand executed");
         ScreenEvent::Success
 
+    }
+
+    fn print_tile(&self) {
+        Output::clear_screen();
+        Output::print_screen_title("Create DID")
     }
 }
