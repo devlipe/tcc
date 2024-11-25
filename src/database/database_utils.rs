@@ -13,4 +13,9 @@ pub fn create_did_table(sqlite: &SQLiteConnector) -> rusqlite::Result<usize> {
     
     sqlite.execute(sql_query, [])
 }
+
+pub fn create_tables(sqlite: &SQLiteConnector) -> rusqlite::Result<()> {
+    create_did_table(sqlite)?;
+    Ok(())
+}
     

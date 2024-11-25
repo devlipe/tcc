@@ -10,10 +10,7 @@ pub struct  ExitAppCommand;
 impl Command for ExitAppCommand {
     fn execute(&mut self, _context: &AppContext) -> ScreenEvent {
         self.print_tile();
-        let event = ExitAppCommand::show_exit_message();
-        // Return the event
-        println!("ExitAppCommand: {:?}", event);
-        event
+        ExitAppCommand::show_exit_message()
     }
 
     fn print_tile(&self) {

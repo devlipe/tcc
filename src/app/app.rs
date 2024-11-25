@@ -29,18 +29,16 @@ impl App {
 
             // Execute the command and get the resulting event
             let event = command.execute(&self.context);
-            
-            if event == ScreenEvent::Exit {
-                break;
-            }
-            
-           
-            // Update state based on event
-            let _output = self.fsm.consume(&event).unwrap();
+
             // Check if the event is Exit and the State is ExitAppWorkflow, if so, break the loop
             if event == ScreenEvent::Exit && *self.fsm.state() == ScreenState::ExitAppWorkflow {
                 break;
             }
+           
+           
+            // Update state based on event
+            let _output = self.fsm.consume(&event).unwrap();
+
 
 
         }

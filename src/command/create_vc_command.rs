@@ -3,7 +3,7 @@ use crate::{AppContext, Command, Output, ScreenEvent};
 pub struct CreateVCCommand;
 
 impl Command for CreateVCCommand {
-    fn execute(&mut self, context: &AppContext) -> ScreenEvent {
+    fn execute(&mut self, _context: &AppContext) -> ScreenEvent {
         println!("CreateVCCommand executed");
         ScreenEvent::Success
 

@@ -41,7 +41,7 @@ impl Output {
 
     }
     
-    pub async fn loading_animation(mut rx: watch::Receiver<bool>) {
+    pub async fn loading_animation(rx: watch::Receiver<bool>) {
         let braille_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
         while *rx.borrow() {
@@ -55,9 +55,8 @@ impl Output {
         }
     }
     pub fn print_screen_title(title: &str) {
-        println!("{}", title.bold().blue());
+        println!("\n{}", title.bold().blue());
         // Print 2 blank lines
-        println!("\n");
         println!("\n");
     }
 }
