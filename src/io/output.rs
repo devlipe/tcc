@@ -54,9 +54,15 @@ impl Output {
             
         }
     }
+    
+    pub fn print_during_loading(message: &str) {
+        println!("\r{}", message);
+    }
     pub fn print_screen_title(title: &str) {
         println!("\n{}", title.bold().blue());
         // Print 2 blank lines
         println!("\n");
     }
+
+
 }

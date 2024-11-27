@@ -2,7 +2,9 @@
 pub enum ScreenState {
     MainMenu,
     CreateDIDWorkflow,
+    ListDIDsWorkflow,
     CreateVCWorkflow,
     VerifyVCWorkflow,
     ExitAppWorkflow,
+    
 }

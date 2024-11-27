@@ -40,6 +40,10 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
                 "sqlite_path".to_string(),
                 env::var("SQLITE_PATH").unwrap_or_default(),
             ),
+            (
+                "network_address".to_string(),
+                env::var("NETWORK_ADDRESS").expect("NETWORK_ADDRESS must be set"),
+            )
         ]),
     }
 });

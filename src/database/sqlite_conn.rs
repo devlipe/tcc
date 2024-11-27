@@ -30,7 +30,7 @@ impl SQLiteConnector {
 }
 
 impl DBConnector for SQLiteConnector{
-    fn save_did_document(&self, did: &IotaDocument, owner: String) -> Result<usize, Error> {
+    fn save_did_document(&self, did: &IotaDocument, owner: &String) -> Result<usize, Error> {
         // The "dids" table has the following columns:
         // - id: INTEGER PRIMARY KEY AUTOINCREMENT
         // - created_at: TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -44,7 +44,7 @@ impl DBConnector for SQLiteConnector{
         
         let fragment =  extract_kid(did)?;
         
-        self.execute(sql_query, [did.id().to_string(), fragment, owner]).map_err(|e| e.into())
+        self.execute(sql_query, [did.id().to_string(), fragment, owner.clone()]).map_err(|e| e.into())
     }
 
     fn get_did_from_id(&self, id: i64) -> Result<String> {

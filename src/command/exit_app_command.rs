@@ -1,9 +1,11 @@
 use crate::{AppContext, Command, Output, ScreenEvent};
 use std::io;
 use std::io::stdin;
+use std::time::Duration;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use tokio::time::sleep;
 
 pub struct  ExitAppCommand;
 
@@ -34,6 +36,7 @@ impl  ExitAppCommand {
             return match key {
                 Key::Esc => {
                     println!("Exit cancelled");
+                    let _ = sleep(Duration::from_secs(1));
                     ScreenEvent::Cancel // Cancel exit if ESC is pressed
                 }
                 _ => {

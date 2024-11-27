@@ -133,7 +133,7 @@ pub async fn get_address(
 }
 
 /// Requests funds from the faucet for the given `address`.
-async fn request_faucet_funds(
+pub async fn request_faucet_funds(
     client: &Client,
     address: Bech32Address,
     faucet_endpoint: &str,

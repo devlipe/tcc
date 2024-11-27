@@ -21,6 +21,8 @@ users = "0.11.0"
 colored = "2.1.0"
 rust-fsm = "0.7.0"
 termion = "4.0.3"
+hex = "0.4.3"
+prettytable = "0.10.0"
 
 
 [lib]

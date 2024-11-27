@@ -20,4 +20,24 @@ impl Did {
             created_at,
         }
     }
+
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn did(&self) -> &str {
+        &self.did
+    }
+
+    pub fn fragment(&self) -> &str {
+        &self.fragment
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn created_at(&self) -> NaiveDateTime {
+        self.created_at
+    }
 }
