@@ -16,6 +16,8 @@
 *.tmp
 *.old
 *.orig
+*.stronghold
+*.sqlite
 .env
 
 # Ignore IDE and editor-specific files

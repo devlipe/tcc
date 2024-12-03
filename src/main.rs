@@ -1,9 +1,9 @@
-use tcc::{App, Output};
+use tcc::{App, AppContext, Output};
 
 #[tokio::main]
 async fn main() {
     Output::show_welcome_message();
-    let context = tcc::AppContext::build_app_context_with_loading().await;
-    let mut app = App::new(context);
+    static CONTEXT: AppContext = AppContext::build_app_context_with_loading().await;
+    let mut app = App::new(&CONTEXT);
     app.run();
 }

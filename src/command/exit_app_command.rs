@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, Output, ScreenEvent};
+use crate::{Command, Output, ScreenEvent};
 use std::io;
 use std::io::stdin;
 use std::time::Duration;
@@ -10,7 +10,7 @@ use tokio::time::sleep;
 pub struct  ExitAppCommand;
 
 impl Command for ExitAppCommand {
-    fn execute(&mut self, _context: &AppContext) -> ScreenEvent {
+    fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
         ExitAppCommand::show_exit_message()
     }

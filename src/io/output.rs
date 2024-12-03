@@ -19,7 +19,10 @@ impl Output {
     //Clear the screen
     pub fn clear_screen() {
         execute!(stdout(), crossterm::terminal::Clear(ClearType::All)).unwrap();
+        // execute!(stdout(), crossterm::terminal::Clear(ClearType::Purge)).unwrap();
     }
+    
+    
 
     pub fn show_welcome_message() {
         // Clear the screen

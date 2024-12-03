@@ -1,16 +1,18 @@
 use crate::{AppContext, Command, Did, Output, ScreenEvent};
 use prettytable::{row, Table};
 
-pub struct ListDIDsCommand;
+pub struct ListDIDsCommand {
+    context: &'static AppContext,
+}
 
 impl Command for ListDIDsCommand {
-    fn execute(&mut self, context: &AppContext) -> ScreenEvent {
+    fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
 
-        let dids = context.db.get_stored_dids();
+        let dids = self.context.db.get_stored_dids();
         match dids {
             Ok(dids) => {
-                self.display_dids_table(dids);
+                ListDIDsCommand::display_dids_table(&dids);
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -29,8 +31,8 @@ impl Command for ListDIDsCommand {
 }
 
 impl ListDIDsCommand {
-    pub fn new() -> ListDIDsCommand {
-        ListDIDsCommand
+    pub fn new(context: &'static AppContext) -> ListDIDsCommand {
+        ListDIDsCommand { context }
     }
 
     fn wait_for_user_input(&self) {
@@ -39,15 +41,23 @@ impl ListDIDsCommand {
         std::io::stdin().read_line(&mut input).unwrap();
     }
 
-    fn display_dids_table(&self, dids: Vec<Did>) {
+    pub fn display_dids_table( dids: &Vec<Did>) {
         let mut table = Table::new();
 
         // Add a header row
-        table.add_row(row!["Name", "Created", "DID",]);
+        table.add_row(row!["Row", "Id", "Name", "Created", "DID",]);
 
         // Add rows for each DID, selecting only `id` and `name`
+        let mut row_number = 1;
         for did in dids {
-            table.add_row(row![did.name(), did.created_at(), did.did()]);
+            table.add_row(row![
+                row_number,
+                did.id(),
+                did.name(),
+                did.created_at(),
+                did.did()
+            ]);
+            row_number += 1;
         }
 
         // Print the table to the terminal

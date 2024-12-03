@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, Output, ScreenEvent};
+use crate::{Command, Input, Output, ScreenEvent};
 
 pub struct MainMenuCommand {
     // a vector of options that the user can select (String, ScreenEvent)
@@ -6,12 +6,14 @@ pub struct MainMenuCommand {
 }
 
 impl Command for MainMenuCommand {
-    fn execute(&mut self, _context: &AppContext) -> ScreenEvent {
+    fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
         self.print_options();
-        let user_input = self.get_user_input();
+        println!("\nPlease select an option:");
+
+        let user_input = Input::get_number_input(1, self.options.len());
         println!("User input: {}", user_input);
-        self.handle_user_input(&user_input)
+        self.handle_user_input(user_input)
     }
 
     fn print_tile(&self) {
@@ -37,42 +39,8 @@ impl MainMenuCommand {
         }
     }
 
-    fn get_user_input(&self) -> String {
-        loop {
-            println!("\nPlease select an option:");
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).unwrap();
-
-            let trimmed_input = input.trim();
-
-            // Check if input is a blank line
-            if trimmed_input.is_empty() {
-                println!("Input cannot be blank. Please try again.");
-                continue;
-            }
-            // Check if input is a number
-            if !trimmed_input.chars().all(char::is_numeric) {
-                println!("Invalid input. Please enter a number.");
-                continue;
-            }
-
-            // Check if the input is within the valid range
-            if let Ok(selection) = trimmed_input.parse::<usize>() {
-                if selection > 0 && selection <= self.options.len() {
-                    return trimmed_input.to_string();
-                }
-            }
-
-            println!(
-                "Invalid input. Please enter a number between 1 and {}.",
-                self.options.len()
-            );
-        }
-    }
-
-    fn handle_user_input(&self, input: &str) -> ScreenEvent {
-        let index = input.parse::<usize>().unwrap();
-        let option = self.options.get(index - 1).unwrap();
+    fn handle_user_input(&self, input: usize) -> ScreenEvent {
+        let option = self.options.get(input - 1).unwrap();
         option.1.clone()
     }
 }

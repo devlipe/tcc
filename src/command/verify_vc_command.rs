@@ -1,9 +1,9 @@
-use crate::{AppContext, Command, Output, ScreenEvent};
+use crate::{Command, Output, ScreenEvent};
 
 pub struct VerifyVCCommand;
 
 impl Command for VerifyVCCommand {
-    fn execute(&mut self, _context: &AppContext) -> ScreenEvent {
+    fn execute(&mut self) -> ScreenEvent {
         println!("VerifyVCCommand executed");
         ScreenEvent::Success
     }

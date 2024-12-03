@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 use chrono::naive::NaiveDateTime;
+use identity_iota::iota::{IotaDID, IotaDocument};
+use identity_iota::prelude::Resolver;
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub struct Did {
     id: i32,
     did: String,
@@ -39,5 +42,11 @@ impl Did {
 
     pub fn created_at(&self) -> NaiveDateTime {
         self.created_at
+    }
+
+    pub async fn resolve_to_iota_document(&self, resolver : &Resolver<IotaDocument>) -> IotaDocument {
+        let did = IotaDID::parse(&self.did).unwrap();
+        resolver.resolve(&did).await.unwrap()
+
     }
 }

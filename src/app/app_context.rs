@@ -1,3 +1,5 @@
+use identity_iota::iota::IotaDocument;
+use identity_iota::resolver::Resolver;
 use crate::{
     create_database_tables, utils, Config, DBConnector, Output, SQLiteConnector, VariablesConfig,
 };
@@ -14,6 +16,7 @@ pub struct AppContext {
     pub stronghold_storage: StrongholdStorage,
     pub storage: Storage<StrongholdStorage, StrongholdStorage>,
     pub address: Address,
+    pub resolver: Resolver<IotaDocument>,
 }
 
 impl AppContext {
@@ -50,6 +53,8 @@ impl AppContext {
                 .await
                 .unwrap(),
             );
+        let mut resolver = Resolver::<IotaDocument>::new();
+        resolver.attach_iota_handler(tangle_client.clone());
         
         AppContext {
             client: tangle_client,
@@ -57,6 +62,7 @@ impl AppContext {
             stronghold_storage,
             storage,
             address,
+            resolver,
         }
     }
 
