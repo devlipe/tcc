@@ -9,11 +9,11 @@ use std::io::Write;
 use tokio::sync::watch;
 use tokio::time::{sleep, Duration, Instant};
 
-pub struct CreateDIDCommand {
-    context: &'static AppContext,
+pub struct CreateDIDCommand <'a>{
+    context: &'a AppContext,
 }
 
-impl Command for CreateDIDCommand {
+impl Command for CreateDIDCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
         // Block on the async function using block_in_place
@@ -29,8 +29,8 @@ impl Command for CreateDIDCommand {
     }
 }
 
-impl CreateDIDCommand {
-    pub fn new(app_context: &'static AppContext) -> CreateDIDCommand {
+impl CreateDIDCommand<'_>{
+    pub fn new(app_context: &AppContext) -> CreateDIDCommand {
         CreateDIDCommand {
             context: app_context,
         }

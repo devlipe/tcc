@@ -10,6 +10,7 @@ use iota_sdk::client::{Client, Password};
 use iota_sdk::types::block::address::{Address, Ed25519Address, Hrp, ToBech32Ext};
 use tokio::sync::watch;
 
+
 pub struct AppContext {
     pub client: Client,
     pub db: Box<dyn DBConnector>,
@@ -18,6 +19,7 @@ pub struct AppContext {
     pub address: Address,
     pub resolver: Resolver<IotaDocument>,
 }
+
 
 impl AppContext {
     pub async fn build_app_context_with_loading() -> Self {

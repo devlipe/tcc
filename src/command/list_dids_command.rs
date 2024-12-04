@@ -1,11 +1,11 @@
 use crate::{AppContext, Command, Did, Output, ScreenEvent};
 use prettytable::{row, Table};
 
-pub struct ListDIDsCommand {
-    context: &'static AppContext,
+pub struct ListDIDsCommand<'a> {
+    context: &'a AppContext,
 }
 
-impl Command for ListDIDsCommand {
+impl Command for ListDIDsCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
 
@@ -30,8 +30,8 @@ impl Command for ListDIDsCommand {
     }
 }
 
-impl ListDIDsCommand {
-    pub fn new(context: &'static AppContext) -> ListDIDsCommand {
+impl ListDIDsCommand<'_> {
+    pub fn new(context: & AppContext) -> ListDIDsCommand {
         ListDIDsCommand { context }
     }
 

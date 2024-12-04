@@ -3,12 +3,12 @@ use rust_fsm::StateMachine;
 
 pub struct App{
     fsm: StateMachine<ScreenFSM>,
-    context: &'static AppContext,
+    context: AppContext,
 }
 
 
 impl App {
-    pub fn new(context: &'static AppContext) -> Self {
+    pub fn new(context: AppContext) -> Self {
         App {
             fsm: StateMachine::new(),
             context,
@@ -38,6 +38,8 @@ impl App {
 
             // Update state based on event
             let _output = self.fsm.consume(&event).unwrap();
+            
+            drop(command);
 
         }
     

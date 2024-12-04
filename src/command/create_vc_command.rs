@@ -1,11 +1,11 @@
 use crate::{AppContext, Command, Did, Input, ListDIDsCommand, Output, ScreenEvent};
 use identity_iota::iota::IotaDocument;
 
-pub struct CreateVCCommand {
-    context: &'static AppContext,
+pub struct CreateVCCommand<'a> {
+    context: &'a AppContext,
 }
 
-impl Command for CreateVCCommand {
+impl Command for CreateVCCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
         // Block on the async function using block_in_place
@@ -21,8 +21,8 @@ impl Command for CreateVCCommand {
     }
 }
 
-impl CreateVCCommand {
-    pub fn new(context: &'static AppContext) -> CreateVCCommand {
+impl CreateVCCommand<'_> {
+    pub fn new(context: &AppContext) -> CreateVCCommand {
         CreateVCCommand { context }
     }
 
