@@ -1,9 +1,11 @@
 use crate::{
-    is_command_available, AppContext, Command, Did, Input, ListDIDsCommand, Output, ScreenEvent,
+    is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output,
+    ScreenEvent, VariablesConfig,
 };
 use crossterm::style::Stylize;
 use identity_iota::iota::IotaDocument;
-use std::io;
+use std::path::Path;
+use std::{fs, io};
 
 pub struct CreateVCCommand<'a> {
     context: &'a AppContext,
@@ -37,10 +39,11 @@ impl CreateVCCommand<'_> {
                 self.print_information_status(&issuer_did, &issuer_name, &holder_did, &holder_name);
                 println!("Creating VC with theses credentials");
                 Output::cooldown().await;
-                self.create_credential()?;
             }
             _ => return Ok(ScreenEvent::Cancel),
         }
+
+        self.create_credential()?;
 
         Ok(ScreenEvent::Success)
     }
@@ -67,14 +70,89 @@ impl CreateVCCommand<'_> {
         Ok((issuer_did, issuer_name, holder_did, holder_name, ok))
     }
 
-    fn create_credential( &self ) -> anyhow::Result<()> {
-        let _editor = self.choose_editor()?;
-        
+    fn create_credential(&self) -> anyhow::Result<()> {
+        let template = self.choose_credential_template()?;
+        let editor = self.choose_editor()?;
+
+
+        let path = self.copy_template_to_file(&template)?;
+
+        if editor == "code" {
+            let status = std::process::Command::new(editor)
+                .arg("--wait")
+                .arg(&path)
+                .status()
+                .expect("Failed to open editor");
+
+            if !status.success() {
+                eprintln!("Failed to open editor");
+                return Err(anyhow::anyhow!("Failed to open editor"));
+            }
+        } else {
+            let status = std::process::Command::new(editor)
+                .arg(&path)
+                .status()
+                .expect("Failed to open editor");
+
+            if !status.success() {
+                eprintln!("Failed to open editor");
+                return Err(anyhow::anyhow!("Failed to open editor"));
+            }
+        }
         
         Ok(())
     }
 
-    fn choose_editor(&self) ->  anyhow::Result<String> {
+    fn copy_template_to_file(&self, template: &String) -> anyhow::Result<String> {
+        let copy_file = utils::random_credential_path();
+
+        // create a file variable that is the directory of templates + the template name
+        let file_path =
+            Path::new(VariablesConfig::get().get_value("credentials_template_directory"))
+                .join(template);
+
+        // copy the template to the file
+        fs::copy(file_path, &copy_file)?;
+
+        println!("Template copied to: {}", &copy_file.display());
+
+        Ok(copy_file.to_str().unwrap().to_string())
+    }
+
+    fn choose_credential_template(&self) -> anyhow::Result<String> {
+        self.print_tile();
+        let templates = self.get_available_templates();
+
+        // Print available templates to the user
+        println!("Available templates:");
+        for (index, template) in templates.iter().enumerate() {
+            println!(
+                "{}: {}",
+                index + 1,
+                Output::snake_to_title_case(template).blue()
+            );
+        }
+
+        // Prompt the user to choose a template
+        println!("Please select a template:");
+
+        let input = Input::get_number_input(1, templates.len());
+
+        Ok(templates[input - 1].to_string())
+    }
+
+    fn get_available_templates(&self) -> Vec<String> {
+        let directory = VariablesConfig::get().get_value("credentials_template_directory");
+        match std::fs::read_dir(directory) {
+            Ok(entries) => entries
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.file_name().into_string().ok())
+                .collect(),
+            Err(_) => vec![],
+        }
+    }
+
+    fn choose_editor(&self) -> anyhow::Result<String> {
         self.print_tile();
         let editors = ["nvim", "vim", "nano", "vi", "code"];
 
@@ -88,7 +166,7 @@ impl CreateVCCommand<'_> {
             eprintln!("No supported editor found (nvim, vim, nano, vi). Exiting.");
             return Err(anyhow::anyhow!("No supported editor found"));
         }
-        
+
         // Print unavailable editors to the user
         if !unavailable_editors.is_empty() {
             println!("Unavailable editors:");
@@ -96,18 +174,18 @@ impl CreateVCCommand<'_> {
                 println!("{}: {}", index + 1, editor.red());
             }
         }
-        
+
         // Print available editors to the user
         println!("Available editors:");
         for (index, editor) in available_editors.iter().enumerate() {
             println!("{}: {}", index + 1, editor.green());
         }
-        
+
         // Prompt the user to choose an editor
         println!("Please select an editor:");
 
         let input = Input::get_number_input(1, available_editors.len());
-        
+
         Ok(available_editors[input - 1].to_string())
     }
 

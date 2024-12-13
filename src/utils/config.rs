@@ -43,7 +43,12 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
             (
                 "network_address".to_string(),
                 env::var("NETWORK_ADDRESS").expect("NETWORK_ADDRESS must be set"),
+            ),
+            (
+                "credentials_template_directory".to_string(),
+                env::var("CREDENTIALS_TEMPLATE_DIRECTORY").expect("CREDENTIALS_TEMPLATE_DIRECTORY must be set"),
             )
+            
         ]),
     }
 });

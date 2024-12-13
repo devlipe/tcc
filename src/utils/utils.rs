@@ -1,9 +1,9 @@
 // Copyright 2020-2023 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Context;
 use std::path::PathBuf;
 use std::process::Command;
-use anyhow::Context;
 
 use identity_iota::iota::block::output::AliasOutput;
 use identity_iota::iota::IotaClientExt;
@@ -31,7 +31,6 @@ use serde_json::Value;
 use super::config;
 use super::config::Config;
 
-
 pub type MemStorage = Storage<JwkMemStore, KeyIdMemstore>;
 
 /// Creates a DID Document and publishes it in a new Alias Output.
@@ -42,7 +41,7 @@ pub async fn create_did(
     client: &Client,
     secret_manager: &mut SecretManager,
     storage: &MemStorage,
-    faucet_endpoint: &str
+    faucet_endpoint: &str,
 ) -> anyhow::Result<(Address, IotaDocument, String)> {
     let address: Address = get_address_with_funds(client, secret_manager, faucet_endpoint)
         .await
@@ -189,6 +188,22 @@ pub fn random_stronghold_path(config: &config::VariablesConfig) -> PathBuf {
     file.to_owned()
 }
 
+pub fn random_credential_path() -> PathBuf {
+    let mut file = std::env::temp_dir();
+    file.push("credentials");
+    create_directory_is_not_exists(&file).unwrap();
+    file.push(rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 32));
+    file.set_extension("json");
+    file.to_owned()
+}
+
+fn create_directory_is_not_exists(path: &PathBuf) -> anyhow::Result<()> {
+    if !path.exists() {
+        std::fs::create_dir_all(path)?;
+    }
+    Ok(())
+}
+
 pub fn pretty_print_json(label: &str, value: &str) {
     let data: Value = serde_json::from_str(value).unwrap();
     let pretty_json = serde_json::to_string_pretty(&data).unwrap();
@@ -199,17 +214,20 @@ pub fn pretty_print_json(label: &str, value: &str) {
 }
 
 pub fn extract_kid(resolved_document: &IotaDocument) -> Result<String, anyhow::Error> {
+    let binding = resolved_document.methods(Some(MethodScope::VerificationMethod));
 
-    let binding = resolved_document
-        .methods(Some(MethodScope::VerificationMethod));
-    
     let method = binding
         .first()
-        .ok_or(anyhow::anyhow!("Methods not Found"))?; 
+        .ok_or(anyhow::anyhow!("Methods not Found"))?;
 
-    let public_key_jwk = method.data().public_key_jwk().ok_or(anyhow::anyhow!("No JWK provided"))?; 
+    let public_key_jwk = method
+        .data()
+        .public_key_jwk()
+        .ok_or(anyhow::anyhow!("No JWK provided"))?;
 
-    let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded"))?; 
+    let kid = public_key_jwk
+        .kid()
+        .ok_or(anyhow::anyhow!("Kid not founded"))?;
 
     Ok(kid.to_string())
 }

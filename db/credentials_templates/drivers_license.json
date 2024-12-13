@@ -1,0 +1,38 @@
+{
+  "fullName": "João da Silva",
+  "dateOfBirth": "1990-05-15",
+  "identificationDocument": {
+    "number": "12.345.678-9",
+    "issuingAuthority": "SSP-SP",
+    "type": "RG"
+  },
+  "nationality": "Brasileira",
+  "sex": "Masculino",
+  "birthplace": {
+    "city": "São Paulo",
+    "state": "SP"
+  },
+  "parentage": {
+    "mother": "Maria da Silva",
+    "father": "José da Silva"
+  },
+  "address": {
+    "street": "Rua das Flores",
+    "number": "123",
+    "complement": "Apto 45",
+    "neighborhood": "Jardim Primavera",
+    "city": "São Paulo",
+    "state": "SP",
+    "postalCode": "01234-567"
+  },
+  "licenseInformation": {
+    "cnhNumber": "987654321",
+    "issuingAuthority": "DETRAN-SP",
+    "firstIssueDate": "2010-04-20",
+    "validity": "2030-04-20",
+    "categories": ["B", "D"],
+    "restrictions": ["Uso de óculos"],
+    "accAuthorization": true,
+    "specialAuthorizations": ["Transporte de produtos perigosos"]
+  }
+}
