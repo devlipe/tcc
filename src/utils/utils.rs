@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::path::PathBuf;
-
+use std::process::Command;
 use anyhow::Context;
 
 use identity_iota::iota::block::output::AliasOutput;
@@ -212,4 +212,13 @@ pub fn extract_kid(resolved_document: &IotaDocument) -> Result<String, anyhow::E
     let kid = public_key_jwk.kid().ok_or(anyhow::anyhow!("Kid not founded"))?; 
 
     Ok(kid.to_string())
+}
+
+pub fn is_command_available(command: &str) -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {}", command))
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }

@@ -12,6 +12,7 @@ use tokio::sync::watch;
 use tokio::time::{sleep, Duration};
 use users::{get_current_uid, get_user_by_uid};
 
+
 pub struct Output;
 
 impl Output {
@@ -65,6 +66,10 @@ impl Output {
         println!("\n{}", title.bold().blue());
         // Print 2 blank lines
         println!("\n");
+    }
+    
+    pub async fn cooldown() {
+        sleep(Duration::from_secs(2)).await;
     }
 
 

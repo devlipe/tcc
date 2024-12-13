@@ -25,8 +25,8 @@ impl Command for MainMenuCommand {
 impl MainMenuCommand {
     pub fn new() -> MainMenuCommand {
         let mut options = Vec::new();
-        options.push(("Create a new DID".to_string(), ScreenEvent::SelectCreateDID));
         options.push(("List created DIDs".to_string(), ScreenEvent::SelectListDIDs));
+        options.push(("Create a new DID".to_string(), ScreenEvent::SelectCreateDID));
         options.push(("Create a new VC".to_string(), ScreenEvent::SelectCreateVC));
         options.push(("Exit".to_string(), ScreenEvent::Cancel));
 

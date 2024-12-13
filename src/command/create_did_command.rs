@@ -7,9 +7,9 @@ use iota_sdk::types::block::output::AliasOutput;
 use std::io;
 use std::io::Write;
 use tokio::sync::watch;
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::Instant;
 
-pub struct CreateDIDCommand <'a>{
+pub struct CreateDIDCommand<'a> {
     context: &'a AppContext,
 }
 
@@ -29,7 +29,7 @@ impl Command for CreateDIDCommand<'_> {
     }
 }
 
-impl CreateDIDCommand<'_>{
+impl CreateDIDCommand<'_> {
     pub fn new(app_context: &AppContext) -> CreateDIDCommand {
         CreateDIDCommand {
             context: app_context,
@@ -62,7 +62,7 @@ impl CreateDIDCommand<'_>{
 
         Output::print_during_loading("DID created successfully!");
         // Sleep for 2 seconds to allow the user to read the message
-        sleep(Duration::from_secs(2)).await;
+        Output::cooldown().await;
 
         Ok(ScreenEvent::Success)
     }

@@ -45,17 +45,17 @@ impl ListDIDsCommand<'_> {
         let mut table = Table::new();
 
         // Add a header row
-        table.add_row(row!["Row", "Id", "Name", "Created", "DID",]);
+        table.add_row(row!["Row",  "Name", "Created", "DID", "Id",]);
 
         // Add rows for each DID, selecting only `id` and `name`
         let mut row_number = 1;
         for did in dids {
             table.add_row(row![
                 row_number,
-                did.id(),
                 did.name(),
                 did.created_at(),
-                did.did()
+                did.did(),
+                did.id()
             ]);
             row_number += 1;
         }

@@ -1,0 +1,21 @@
+{
+
+  "fullName": "Nome Completo Aqui",
+  "dateOfBirth": "Data de Nascimento Formato (DD-MM-AAAA)",
+  "parents": {
+    "mother": "Nome Da Mãe",
+    "father": "Nome Do Pai"
+  },
+  "grandparents": {
+    "maternal": ["Nome da Avó Materna", "Nome do Avô Materno"],
+    "paternal": ["Nome da Avó Paterna", "Nome do Avô Paterno"]
+  },
+  "birthLocation": "Local de Nascimento (Hospital, Cidade, Estado, País)",
+  "nationality": "Brasileira",
+  "cpf": "CPF Aqui",
+  "registryDetails": {
+    "book": "Livro A",
+    "page": "Folha 10",
+    "term": "Termo 2023"
+  }
+}

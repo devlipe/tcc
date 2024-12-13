@@ -1,13 +1,11 @@
 use crate::{Command, Output, ScreenEvent};
 use std::io;
 use std::io::stdin;
-use std::time::Duration;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use tokio::time::sleep;
 
-pub struct  ExitAppCommand;
+pub struct ExitAppCommand;
 
 impl Command for ExitAppCommand {
     fn execute(&mut self) -> ScreenEvent {
@@ -21,7 +19,7 @@ impl Command for ExitAppCommand {
     }
 }
 
-impl  ExitAppCommand {
+impl ExitAppCommand {
     fn show_exit_message() -> ScreenEvent {
         println!("It is a shame that we have to part ways. Goodbye!");
         println!("Press any key to exit (ESC to cancel):");
@@ -35,15 +33,13 @@ impl  ExitAppCommand {
         while let Some(Ok(key)) = keys.next() {
             return match key {
                 Key::Esc => {
-                    println!("Exit cancelled");
-                    let _ = sleep(Duration::from_secs(1));
                     ScreenEvent::Cancel // Cancel exit if ESC is pressed
                 }
                 _ => {
                     println!("Exiting...");
                     ScreenEvent::Exit // Exit if any other key is pressed
                 }
-            }
+            };
         }
 
         // Default case
