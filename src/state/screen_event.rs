@@ -4,6 +4,7 @@ pub enum ScreenEvent {
     SelectListDIDs,
     SelectCreateVC,
     SelectVerifyVC,
+    SelectListItems,
     Cancel,
     Success,
     Exit,

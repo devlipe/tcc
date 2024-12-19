@@ -5,6 +5,7 @@ pub use  create_vc_command::*;
 pub use  verify_vc_command::*;
 pub use  exit_app_command::*;
 pub use list_dids_command::*;
+pub use list_created_items::*;
 
 
 mod command;
@@ -14,3 +15,4 @@ mod create_vc_command;
 mod verify_vc_command;
 mod exit_app_command;
 mod list_dids_command;
+mod list_created_items;

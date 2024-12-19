@@ -8,12 +8,12 @@ pub struct MainMenuCommand {
 impl Command for MainMenuCommand {
     fn execute(&mut self) -> ScreenEvent {
         self.print_tile();
-        self.print_options();
+        Output::print_options_vec(&self.options);
         println!("\nPlease select an option:");
 
         let user_input = Input::get_number_input(1, self.options.len());
         println!("User input: {}", user_input);
-        self.handle_user_input(user_input)
+        self.options[user_input - 1].1.clone()
     }
 
     fn print_tile(&self) {
@@ -24,23 +24,14 @@ impl Command for MainMenuCommand {
 
 impl MainMenuCommand {
     pub fn new() -> MainMenuCommand {
-        let mut options = Vec::new();
-        options.push(("List created DIDs".to_string(), ScreenEvent::SelectListDIDs));
-        options.push(("Create a new DID".to_string(), ScreenEvent::SelectCreateDID));
-        options.push(("Create a new VC".to_string(), ScreenEvent::SelectCreateVC));
-        options.push(("Exit".to_string(), ScreenEvent::Cancel));
+        let options = vec![
+            ("List Created Items".to_string(), ScreenEvent::SelectListItems),
+            ("Create a new DID".to_string(), ScreenEvent::SelectCreateDID),
+            ("Create a new VC".to_string(), ScreenEvent::SelectCreateVC),
+            ("Exit".to_string(), ScreenEvent::Cancel),
+        ];
 
         MainMenuCommand { options }
     }
-
-    fn print_options(&self) {
-        for (index, option) in self.options.iter().enumerate() {
-            println!("{}. {}", index + 1, option.0);
-        }
-    }
-
-    fn handle_user_input(&self, input: usize) -> ScreenEvent {
-        let option = self.options.get(input - 1).unwrap();
-        option.1.clone()
-    }
+       
 }

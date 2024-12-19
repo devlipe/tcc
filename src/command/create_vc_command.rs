@@ -3,9 +3,25 @@ use crate::{
     ScreenEvent, VariablesConfig,
 };
 use crossterm::style::Stylize;
+
+use identity_eddsa_verifier::EdDSAJwsVerifier;
+use identity_iota::core::Object;
+use identity_iota::core::{FromJson, Url};
+use identity_iota::credential::{
+    Credential, CredentialBuilder, DecodedJwtCredential, Jwt, JwtCredentialValidator, Subject,
+};
+use identity_iota::did::DID;
 use identity_iota::iota::IotaDocument;
+use identity_iota::storage::{JwkDocumentExt, JwsSignatureOptions};
+use serde_json::Value;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::{fs, io};
+
+use identity_iota::credential::JwtCredentialValidationOptions;
+
+use identity_iota::credential::FailFast;
 
 pub struct CreateVCCommand<'a> {
     context: &'a AppContext,
@@ -43,9 +59,65 @@ impl CreateVCCommand<'_> {
             _ => return Ok(ScreenEvent::Cancel),
         }
 
-        self.create_credential()?;
+        let (path, template): (String, String) = self.create_credential()?;
+
+        let json: Value = Self::build_json_credential(holder_did, &path)?;
+
+        let subject: Subject = Subject::from_json_value(json)?;
+
+        let credential: Credential = CredentialBuilder::default()
+            .issuer(Url::parse(issuer_did.id().as_str())?)
+            .type_(Output::snake_to_camel_case(&template))
+            .subject(subject)
+            .build()?;
+
+        // Print the credential in json format
+        println!(
+            "Credential JSON: {}",
+            serde_json::to_string_pretty(&credential)?
+        );
+
+        let credential_jwt: Jwt = issuer_did
+            .create_credential_jwt(
+                &credential,
+                &self.context.storage,
+                utils::extract_kid(&issuer_did)?.as_str(),
+                &JwsSignatureOptions::default(),
+                None,
+            )
+            .await?;
+
+        let decoded_credential: DecodedJwtCredential<Object> =
+            JwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default())
+                .validate::<_, Object>(
+                    &credential_jwt,
+                    &issuer_did,
+                    &JwtCredentialValidationOptions::default(),
+                    FailFast::FirstError,
+                )?;
+
+        println!("Credential JSON > {:#}", decoded_credential.credential);
 
         Ok(ScreenEvent::Success)
+    }
+
+    fn build_json_credential(holder_did: IotaDocument, path: &String) -> anyhow::Result<Value> {
+        // Read file content
+        let mut context = String::new();
+        File::open(&path)?.read_to_string(&mut context)?;
+
+        // Parse to JSON
+        let mut json: Value = serde_json::from_str(&context)?;
+
+        // Ensure it's a JSON object
+        if let Value::Object(ref mut map) = json {
+            // Add the `id` key with the holder's ID
+            map.insert("id".to_string(), Value::String(holder_did.id().to_string()));
+        } else {
+            anyhow::bail!("File content is not a valid JSON object");
+        }
+
+        Ok(json)
     }
 
     async fn choose_dids(
@@ -70,13 +142,17 @@ impl CreateVCCommand<'_> {
         Ok((issuer_did, issuer_name, holder_did, holder_name, ok))
     }
 
-    fn create_credential(&self) -> anyhow::Result<()> {
+    fn create_credential(&self) -> anyhow::Result<(String, String)> {
         let template = self.choose_credential_template()?;
         let editor = self.choose_editor()?;
-
-
         let path = self.copy_template_to_file(&template)?;
 
+        Self::edit_file(editor, &path)?;
+
+        Ok((path, template))
+    }
+
+    fn edit_file(editor: String, path: &String) -> anyhow::Result<()> {
         if editor == "code" {
             let status = std::process::Command::new(editor)
                 .arg("--wait")
@@ -99,7 +175,6 @@ impl CreateVCCommand<'_> {
                 return Err(anyhow::anyhow!("Failed to open editor"));
             }
         }
-        
         Ok(())
     }
 

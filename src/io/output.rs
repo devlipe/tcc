@@ -10,6 +10,7 @@ use std::str::Split;
 use tokio::sync::watch;
 use tokio::time::{sleep, Duration};
 use users::{get_current_uid, get_user_by_uid};
+use crate::ScreenEvent;
 
 pub struct Output;
 
@@ -94,5 +95,11 @@ impl Output {
                 None => String::new(),
             }
         })
+    }
+    
+    pub fn print_options_vec(ops: &Vec<(String, ScreenEvent)>) {
+        for (index, option) in ops.iter().enumerate() {
+            println!("{}. {}", index + 1, option.0);
+        }
     }
 }

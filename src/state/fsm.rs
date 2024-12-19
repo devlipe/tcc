@@ -17,8 +17,10 @@ impl StateMachineImpl for ScreenFSM{
             (ScreenState::MainMenu, ScreenEvent::SelectCreateDID) => Some(ScreenState::CreateDIDWorkflow),
             (ScreenState::MainMenu, ScreenEvent::SelectCreateVC) => Some(ScreenState::CreateVCWorkflow),
             (ScreenState::MainMenu, ScreenEvent::SelectVerifyVC) => Some(ScreenState::VerifyVCWorkflow),
-            (ScreenState::MainMenu, ScreenEvent::SelectListDIDs) => Some(ScreenState::ListDIDsWorkflow),
-            
+            (ScreenState::MainMenu, ScreenEvent::SelectListItems) => Some(ScreenState::ListItemsMenu),
+
+            (ScreenState::ListItemsMenu, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),
+            (ScreenState::ListItemsMenu, ScreenEvent::SelectListDIDs) => Some(ScreenState::ListDIDsWorkflow),
             
              // Exit the program
             (ScreenState::MainMenu, ScreenEvent::Cancel) => Some(ScreenState::ExitAppWorkflow),

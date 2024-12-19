@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, CreateDIDCommand, CreateVCCommand, ExitAppCommand, ListDIDsCommand, MainMenuCommand, ScreenEvent, ScreenFSM, ScreenState, VerifyVCCommand};
+use crate::{AppContext, Command, CreateDIDCommand, CreateVCCommand, ExitAppCommand, ListCreatedItems, ListDIDsCommand, MainMenuCommand, ScreenEvent, ScreenFSM, ScreenState, VerifyVCCommand};
 use rust_fsm::StateMachine;
 
 pub struct App{
@@ -26,6 +26,7 @@ impl App {
                 ScreenState::ListDIDsWorkflow => Box::new(ListDIDsCommand::new(&self.context)),
                 ScreenState::VerifyVCWorkflow => Box::new(VerifyVCCommand),
                 ScreenState::ExitAppWorkflow => Box::new(ExitAppCommand),
+                ScreenState::ListItemsMenu => Box::new(ListCreatedItems::new()),
             };
 
             // Execute the command and get the resulting event
