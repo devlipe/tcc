@@ -1,6 +1,7 @@
 // Create a class that will handle the output of the program.
 // This class will be used to print the output of the program.
 
+use crate::ScreenEvent;
 use colored::*;
 use crossterm::execute;
 use crossterm::terminal::ClearType;
@@ -10,7 +11,6 @@ use std::str::Split;
 use tokio::sync::watch;
 use tokio::time::{sleep, Duration};
 use users::{get_current_uid, get_user_by_uid};
-use crate::ScreenEvent;
 
 pub struct Output;
 
@@ -95,6 +95,112 @@ impl Output {
                 None => String::new(),
             }
         })
+    }
+
+    pub fn display_with_pagination<T: Clone>(
+        items: &Vec<T>,
+        display_fn: fn(&Vec<T>, usize),
+        page_size: usize,
+        selectable: bool,
+    ) -> usize {
+        let total_pages = (items.len() + page_size - 1) / page_size;
+        let mut current_page = 0;
+        let mut error = String::new();
+
+        loop {
+            // Calculate the start and end indices for the current page
+            let start_index = current_page * page_size;
+            let end_index = usize::min(start_index + page_size, items.len());
+
+            display_fn(&items[start_index..end_index].to_vec(), start_index + 1);
+
+            println!("Page {}/{}", current_page + 1, total_pages);
+
+            // Navigation options
+            Self::print_navigation_options(selectable);
+
+            if !error.is_empty() {
+                println!("Error: {}", error.clone());
+                error.clear();
+            }
+
+            // Wait for user input
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            let input = input.trim();
+
+            Self::clear_screen();
+
+            match input {
+                "" => {
+                    if current_page + 1 < total_pages {
+                        current_page += 1;
+                    } else {
+                        error = "You are already on the last page.".to_string();
+                    }
+                }
+                "p" => {
+                    if current_page > 0 {
+                        current_page -= 1;
+                    } else {
+                        error = "You are already on the first page.".to_string();
+                    }
+                }
+                "q" => {
+                    if !selectable {
+                        println!("Exiting navigation.");
+                        return 0;
+                    } else {
+                        error = "Please own up to your choices and end this stream".to_string();
+                    }
+                }
+                _ => {
+                    if selectable {
+                        // Check if input is a number
+                        if !input.chars().all(char::is_numeric) {
+                            println!("Invalid input. Please enter a number.");
+                            continue;
+                        }
+
+                        // Check if the input is within the valid range
+                        if let Ok(selection) = input.parse::<usize>() {
+                            if selection >= start_index + 1 && selection <= end_index {
+                                return selection;
+                            }
+                        }
+
+                        error = format!(
+                            "Invalid input. Please enter a number between {} and {}.",
+                            start_index + 1,
+                            end_index
+                        );
+                    } else {
+                        error =
+                            "Invalid input. Use 'n' for next, 'p' for previous, or 'q' to quit."
+                                .to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    fn print_navigation_options(selectable: bool) {
+        if selectable {
+            println!(
+                "{} {} {}",
+                "Navigation:",
+                "enter - Next page".green().bold(),
+                "p - Previous page".bold().red()
+            );
+        } else {
+            println!(
+                "{} {} {} {}",
+                "Navigation:",
+                "enter - Next page".green().bold(),
+                "p - Previous page".bold().red(),
+                "q - Quit".bold().blue()
+            );
+        }
     }
     
     pub fn print_options_vec(ops: &Vec<(String, ScreenEvent)>) {

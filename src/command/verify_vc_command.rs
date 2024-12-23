@@ -1,12 +1,15 @@
-use crate::{Command, Output, ScreenEvent};
+use crate::{AppContext, Command, Output, ScreenEvent};
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::Object;
 use identity_iota::credential::{DecodedJwtCredential, FailFast, Jwt, JwtCredentialValidationOptions, JwtCredentialValidator};
 use identity_iota::iota::IotaDocument;
 
-pub struct VerifyVCCommand;
+pub struct VerifyVCCommand<'a>
+{
+    context: &'a AppContext,
+}
 
-impl Command for VerifyVCCommand {
+impl Command for VerifyVCCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
         println!("VerifyVCCommand executed");
         ScreenEvent::Success
@@ -18,7 +21,23 @@ impl Command for VerifyVCCommand {
     }
 }
 
-impl VerifyVCCommand {
+impl VerifyVCCommand<'_> {
+    
+    pub fn new(context: &AppContext) -> VerifyVCCommand {
+        VerifyVCCommand { context }
+    }
+    
+    
+    pub fn handle_verify_vc(&self) -> ScreenEvent {
+        
+        let _vcs = self.context.db.get_stored_vcs().unwrap();
+        
+        ScreenEvent::Success
+    }
+    
+    
+    
+    
     pub fn verify_credential(credential_jwt: &Jwt, issuer_document : &IotaDocument) -> anyhow::Result<DecodedJwtCredential> {
         let decoded_vc: DecodedJwtCredential<Object> =
             JwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default())
@@ -28,7 +47,7 @@ impl VerifyVCCommand {
                     &JwtCredentialValidationOptions::default(),
                     FailFast::FirstError,
                 )?;
-        
+
         Ok(decoded_vc)
     }
 }

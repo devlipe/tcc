@@ -26,7 +26,7 @@ impl App {
                 ScreenState::CreateDIDWorkflow => Box::new(CreateDIDCommand::new(&self.context)),
                 ScreenState::CreateVCWorkflow => Box::new(CreateVCCommand::new(&self.context)),
                 ScreenState::ListDIDsWorkflow => Box::new(ListDIDsCommand::new(&self.context)),
-                ScreenState::VerifyVCWorkflow => Box::new(VerifyVCCommand),
+                ScreenState::VerifyVCWorkflow => Box::new(VerifyVCCommand::new(&self.context)),
                 ScreenState::ExitAppWorkflow => Box::new(ExitAppCommand),
                 ScreenState::ListItemsMenu => Box::new(ListCreatedItems::new()),
                 ScreenState::ListVCsWorkflow => Box::new(ListVCsCommand::new(&self.context)),

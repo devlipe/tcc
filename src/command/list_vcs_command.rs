@@ -1,6 +1,6 @@
-use crate::{AppContext, Command, Input, Output, ScreenEvent, Vc};
+use crate::{AppContext, Command, Output, ScreenEvent, Vc};
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-use comfy_table::Table;
+use comfy_table::{Cell, Table};
 
 pub struct ListVCsCommand<'a> {
     context: &'a AppContext,
@@ -13,15 +13,14 @@ impl Command for ListVCsCommand<'_> {
         let vcs = self.context.db.get_stored_vcs();
         match vcs {
             Ok(vcs) => {
-                ListVCsCommand::display_vcs_table(&vcs);
+                Output::display_with_pagination(&vcs, Self::display_vcs_table, 2, false);
+                ScreenEvent::Success
             }
             Err(e) => {
                 println!("Error: {}", e);
+                ScreenEvent::Cancel
             }
         }
-
-        Input::wait_for_user_input("Press any key to return to the main menu");
-        ScreenEvent::Success
     }
 
     fn print_tile(&self) {
@@ -35,7 +34,7 @@ impl ListVCsCommand<'_> {
         ListVCsCommand { context }
     }
 
-    pub fn display_vcs_table(vcs: &Vec<Vc>) {
+    pub fn display_vcs_table(vcs: &Vec<Vc>, fist_row_index: usize) {
         let mut table = Table::new();
         table.apply_modifier(UTF8_ROUND_CORNERS);
         table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
@@ -45,16 +44,16 @@ impl ListVCsCommand<'_> {
         ]);
 
         // Add rows for each DID
-        let mut row_number = 1;
+        let mut row_number = fist_row_index;
         for vc in vcs {
             table.add_row(vec![
-                row_number.to_string(),
-                vc.holder().name().to_string(),
-                vc.issuer().name().to_string(),
-                vc.tp().to_string(),
-                vc.vc().to_string(),
-                vc.created_at().to_string(),
-                vc.id().to_string(),
+                Cell::new(row_number),
+                Cell::new(vc.holder().name()),
+                Cell::new(vc.issuer().name()),
+                Cell::new(vc.tp()),
+                Cell::new(vc.vc()),
+                Cell::new(vc.created_at()),
+                Cell::new(vc.id()),
             ]);
             row_number += 1;
         }

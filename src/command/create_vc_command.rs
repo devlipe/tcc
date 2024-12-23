@@ -1,10 +1,11 @@
-use crate::{is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output, ScreenEvent, VariablesConfig, VerifyVCCommand};
+use crate::{
+    is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output,
+    ScreenEvent, VariablesConfig, VerifyVCCommand,
+};
 use crossterm::style::Stylize;
 
 use identity_iota::core::{FromJson, Url};
-use identity_iota::credential::{
-    Credential, CredentialBuilder, Jwt, Subject,
-};
+use identity_iota::credential::{Credential, CredentialBuilder, Jwt, Subject};
 use identity_iota::did::DID;
 use identity_iota::iota::IotaDocument;
 use identity_iota::storage::{JwkDocumentExt, JwsSignatureOptions};
@@ -56,9 +57,9 @@ impl CreateVCCommand<'_> {
         }
 
         let (path, template): (String, String) = self.create_credential()?;
-        
+
         let credential_type = Output::snake_to_camel_case(&template);
-        
+
         let json: Value = Self::build_json_credential(holder_document, &path)?;
 
         let subject: Subject = Subject::from_json_value(json)?;
@@ -68,12 +69,6 @@ impl CreateVCCommand<'_> {
             .type_(&credential_type)
             .subject(subject)
             .build()?;
-
-        // Print the credential in json format
-        println!(
-            "Credential JSON: {}",
-            serde_json::to_string_pretty(&credential)?
-        );
 
         let credential_jwt: Jwt = issuer_document
             .create_credential_jwt(
@@ -85,13 +80,17 @@ impl CreateVCCommand<'_> {
             )
             .await?;
 
-        let decoded_credential = VerifyVCCommand::verify_credential(&credential_jwt, &issuer_document)?;
+        let _decoded_credential =
+            VerifyVCCommand::verify_credential(&credential_jwt, &issuer_document)?;
 
-        println!("Credential JSON > {:?}", decoded_credential);
-        
         // Save the credential to the database
-        self.context.db.save_vc(&credential_jwt.as_str(), issuer.id(), holder.id(), &credential_type)?;
-        
+        self.context.db.save_vc(
+            &credential_jwt.as_str(),
+            issuer.id(),
+            holder.id(),
+            &credential_type,
+        )?;
+
         Ok(ScreenEvent::Success)
     }
 
@@ -316,30 +315,37 @@ impl CreateVCCommand<'_> {
 
     pub async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
-        ListDIDsCommand::display_dids_table(dids);
-        println!("Select the DID row to use as the issuer:");
-        let did: Did = self.get_did(dids);
+        let index = Output::display_with_pagination(dids, Self::choose_issuer_table, 15, true);
+        let did: Did = self.get_did(dids, index);
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
             did,
         )
+    }
+
+    fn choose_issuer_table(dids: &Vec<Did>, first_row_index: usize) {
+        ListDIDsCommand::display_dids_table(dids, first_row_index);
+        println!("Select the DID row to use as the issuer:");
     }
 
     pub async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
-        ListDIDsCommand::display_dids_table(dids);
-        println!("Select the DID row to use as the holder:");
+        let index = Output::display_with_pagination(dids, Self::choose_holder_table, 15, true);
 
-        let did: Did = self.get_did(dids);
+        let did: Did = self.get_did(dids, index);
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
             did,
         )
     }
 
-    pub fn get_did(&self, dids: &Vec<Did>) -> Did {
-        let user_input = Input::get_number_input(1, dids.len());
-        let selected_did = dids.get(user_input - 1).unwrap();
+    fn choose_holder_table(dids: &Vec<Did>, first_row_index: usize) {
+        ListDIDsCommand::display_dids_table(dids, first_row_index);
+        println!("Select the DID row to use as the holder:");
+    }
+
+    pub fn get_did(&self, dids: &Vec<Did>, index: usize) -> Did {
+        let selected_did = dids.get(index - 1).unwrap();
         selected_did.clone()
     }
 }
