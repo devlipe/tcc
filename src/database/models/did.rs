@@ -6,7 +6,7 @@ use identity_iota::prelude::Resolver;
 
 #[derive(Debug, Clone)]
 pub struct Did {
-    id: i32,
+    id: i64,
     did: String,
     fragment: String,
     name: String,
@@ -14,7 +14,7 @@ pub struct Did {
 }
 
 impl Did {
-    pub fn new(id: i32, did: String, fragment: String, name: String, created_at: NaiveDateTime) -> Self {
+    pub fn new(id: i64, did: String, fragment: String, name: String, created_at: NaiveDateTime) -> Self {
         Self {
             id,
             did,
@@ -24,7 +24,7 @@ impl Did {
         }
     }
 
-    pub fn id(&self) -> i32 {
+    pub fn id(&self) -> i64 {
         self.id
     }
 

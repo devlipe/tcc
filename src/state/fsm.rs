@@ -21,6 +21,7 @@ impl StateMachineImpl for ScreenFSM{
 
             (ScreenState::ListItemsMenu, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),
             (ScreenState::ListItemsMenu, ScreenEvent::SelectListDIDs) => Some(ScreenState::ListDIDsWorkflow),
+            (ScreenState::ListItemsMenu, ScreenEvent::SelectListVCs) => Some(ScreenState::ListVCsWorkflow),
             
              // Exit the program
             (ScreenState::MainMenu, ScreenEvent::Cancel) => Some(ScreenState::ExitAppWorkflow),

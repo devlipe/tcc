@@ -25,7 +25,7 @@ impl ListCreatedItems {
     pub fn new() -> ListCreatedItems {
         let mut options = Vec::new();
         options.push(("List DIDs".to_string(), ScreenEvent::SelectListDIDs));
-        options.push(("List VCs".to_string(), ScreenEvent::Cancel));
+        options.push(("List VCs".to_string(), ScreenEvent::SelectListVCs));
         options.push(("Back".to_string(), ScreenEvent::Cancel));
         ListCreatedItems { options }
     }

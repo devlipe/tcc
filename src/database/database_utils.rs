@@ -1,6 +1,7 @@
 use crate::SQLiteConnector;
+use anyhow::Result;
 
-pub fn create_did_table(sqlite: &SQLiteConnector) -> rusqlite::Result<usize> {
+pub fn create_did_table(sqlite: &SQLiteConnector) -> Result<usize> {
     let sql_query = r#"
         CREATE TABLE IF NOT EXISTS dids (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +15,7 @@ pub fn create_did_table(sqlite: &SQLiteConnector) -> rusqlite::Result<usize> {
     sqlite.execute(sql_query, [])
 }
 
-pub fn create_vc_table(sqlite: &SQLiteConnector) -> rusqlite::Result<usize> {
+pub fn create_vc_table(sqlite: &SQLiteConnector) -> Result<usize> {
     let sql_query = r#"
         CREATE TABLE IF NOT EXISTS vcs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +31,7 @@ pub fn create_vc_table(sqlite: &SQLiteConnector) -> rusqlite::Result<usize> {
     sqlite.execute(sql_query, [])
 }
 
-pub fn create_database_tables(sqlite: &SQLiteConnector) -> rusqlite::Result<()> {
+pub fn create_database_tables(sqlite: &SQLiteConnector) -> Result<()> {
     create_did_table(sqlite)?;
     create_vc_table(sqlite)?;
     Ok(())

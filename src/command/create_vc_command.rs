@@ -1,14 +1,9 @@
-use crate::{
-    is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output,
-    ScreenEvent, VariablesConfig,
-};
+use crate::{is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output, ScreenEvent, VariablesConfig, VerifyVCCommand};
 use crossterm::style::Stylize;
 
-use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::core::Object;
 use identity_iota::core::{FromJson, Url};
 use identity_iota::credential::{
-    Credential, CredentialBuilder, DecodedJwtCredential, Jwt, JwtCredentialValidator, Subject,
+    Credential, CredentialBuilder, Jwt, Subject,
 };
 use identity_iota::did::DID;
 use identity_iota::iota::IotaDocument;
@@ -18,10 +13,6 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::{fs, io};
-
-use identity_iota::credential::JwtCredentialValidationOptions;
-
-use identity_iota::credential::FailFast;
 
 pub struct CreateVCCommand<'a> {
     context: &'a AppContext,
@@ -48,11 +39,16 @@ impl CreateVCCommand<'_> {
     }
 
     async fn handle_vc_creation(&self) -> anyhow::Result<ScreenEvent> {
-        let (issuer_did, issuer_name, holder_did, holder_name, ok) = self.choose_dids().await?;
+        let (issuer_document, issuer, holder_document, holder, ok) = self.choose_dids().await?;
 
         match ok {
             ScreenEvent::Success => {
-                self.print_information_status(&issuer_did, &issuer_name, &holder_did, &holder_name);
+                self.print_information_status(
+                    &issuer_document,
+                    &issuer.name().to_string(),
+                    &holder_document,
+                    &holder.name().to_string(),
+                );
                 println!("Creating VC with theses credentials");
                 Output::cooldown().await;
             }
@@ -60,14 +56,16 @@ impl CreateVCCommand<'_> {
         }
 
         let (path, template): (String, String) = self.create_credential()?;
-
-        let json: Value = Self::build_json_credential(holder_did, &path)?;
+        
+        let credential_type = Output::snake_to_camel_case(&template);
+        
+        let json: Value = Self::build_json_credential(holder_document, &path)?;
 
         let subject: Subject = Subject::from_json_value(json)?;
 
         let credential: Credential = CredentialBuilder::default()
-            .issuer(Url::parse(issuer_did.id().as_str())?)
-            .type_(Output::snake_to_camel_case(&template))
+            .issuer(Url::parse(issuer_document.id().as_str())?)
+            .type_(&credential_type)
             .subject(subject)
             .build()?;
 
@@ -77,27 +75,23 @@ impl CreateVCCommand<'_> {
             serde_json::to_string_pretty(&credential)?
         );
 
-        let credential_jwt: Jwt = issuer_did
+        let credential_jwt: Jwt = issuer_document
             .create_credential_jwt(
                 &credential,
                 &self.context.storage,
-                utils::extract_kid(&issuer_did)?.as_str(),
+                utils::extract_kid(&issuer_document)?.as_str(),
                 &JwsSignatureOptions::default(),
                 None,
             )
             .await?;
 
-        let decoded_credential: DecodedJwtCredential<Object> =
-            JwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default())
-                .validate::<_, Object>(
-                    &credential_jwt,
-                    &issuer_did,
-                    &JwtCredentialValidationOptions::default(),
-                    FailFast::FirstError,
-                )?;
+        let decoded_credential = VerifyVCCommand::verify_credential(&credential_jwt, &issuer_document)?;
 
-        println!("Credential JSON > {:#}", decoded_credential.credential);
-
+        println!("Credential JSON > {:?}", decoded_credential);
+        
+        // Save the credential to the database
+        self.context.db.save_vc(&credential_jwt.as_str(), issuer.id(), holder.id(), &credential_type)?;
+        
         Ok(ScreenEvent::Success)
     }
 
@@ -122,24 +116,24 @@ impl CreateVCCommand<'_> {
 
     async fn choose_dids(
         &self,
-    ) -> anyhow::Result<(IotaDocument, String, IotaDocument, String, ScreenEvent)> {
+    ) -> anyhow::Result<(IotaDocument, Did, IotaDocument, Did, ScreenEvent)> {
         let dids = self.context.db.get_stored_dids()?;
-        let (mut issuer_did, mut issuer_name): (IotaDocument, String) =
+        let (mut issuer_document, mut issuer): (IotaDocument, Did) =
             self.get_issuer_did(&dids).await;
 
-        let (mut holder_did, mut holder_name): (IotaDocument, String) =
+        let (mut holder_document, mut holder): (IotaDocument, Did) =
             self.get_holder_did(&dids).await;
 
         let ok = self
             .confirm_user_selection(
                 &dids,
-                &mut issuer_did,
-                &mut issuer_name,
-                &mut holder_did,
-                &mut holder_name,
+                &mut issuer_document,
+                &mut issuer,
+                &mut holder_document,
+                &mut holder,
             )
             .await?;
-        Ok((issuer_did, issuer_name, holder_did, holder_name, ok))
+        Ok((issuer_document, issuer, holder_document, holder, ok))
     }
 
     fn create_credential(&self) -> anyhow::Result<(String, String)> {
@@ -218,7 +212,7 @@ impl CreateVCCommand<'_> {
 
     fn get_available_templates(&self) -> Vec<String> {
         let directory = VariablesConfig::get().get_value("credentials_template_directory");
-        match std::fs::read_dir(directory) {
+        match fs::read_dir(directory) {
             Ok(entries) => entries
                 .filter_map(|entry| entry.ok())
                 .filter_map(|entry| entry.file_name().into_string().ok())
@@ -245,8 +239,8 @@ impl CreateVCCommand<'_> {
         // Print unavailable editors to the user
         if !unavailable_editors.is_empty() {
             println!("Unavailable editors:");
-            for (index, editor) in unavailable_editors.iter().enumerate() {
-                println!("{}: {}", index + 1, editor.red());
+            for (_, editor) in unavailable_editors.iter().enumerate() {
+                println!("- : {}", editor.red());
             }
         }
 
@@ -268,12 +262,17 @@ impl CreateVCCommand<'_> {
         &self,
         dids: &Vec<Did>,
         issuer_did: &mut IotaDocument,
-        issuer_name: &mut String,
+        issuer: &mut Did,
         holder_did: &mut IotaDocument,
-        holder_name: &mut String,
+        holder: &mut Did,
     ) -> anyhow::Result<ScreenEvent> {
         loop {
-            self.print_information_status(&issuer_did, &issuer_name, &holder_did, &holder_name);
+            self.print_information_status(
+                &issuer_did,
+                &issuer.name().to_string(),
+                &holder_did,
+                &holder.name().to_string(),
+            );
             println!(
                 "{} {} {} {} {} {}",
                 "\nPress",
@@ -292,10 +291,10 @@ impl CreateVCCommand<'_> {
             match input.as_str() {
                 "back" => return Err(anyhow::anyhow!("User cancelled operation")),
                 "issuer" => {
-                    (*issuer_did, *issuer_name) = self.get_issuer_did(&dids).await;
+                    (*issuer_did, *issuer) = self.get_issuer_did(&dids).await;
                 }
                 "holder" => {
-                    (*holder_did, *holder_name) = self.get_holder_did(&dids).await;
+                    (*holder_did, *holder) = self.get_holder_did(&dids).await;
                 }
                 "" => break Ok(ScreenEvent::Success),
                 _ => continue,
@@ -315,18 +314,18 @@ impl CreateVCCommand<'_> {
         println!("Holder DID: {} {}", holder_name, holder_did.id());
     }
 
-    pub async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, String) {
+    pub async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
         ListDIDsCommand::display_dids_table(dids);
         println!("Select the DID row to use as the issuer:");
         let did: Did = self.get_did(dids);
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
-            did.name().to_string(),
+            did,
         )
     }
 
-    pub async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, String) {
+    pub async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
         ListDIDsCommand::display_dids_table(dids);
         println!("Select the DID row to use as the holder:");
@@ -334,7 +333,7 @@ impl CreateVCCommand<'_> {
         let did: Did = self.get_did(dids);
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
-            did.name().to_string(),
+            did,
         )
     }
 

@@ -1,6 +1,12 @@
 pub struct Input;
 
 impl Input {
+
+    pub fn wait_for_user_input(msg: &str) {
+        println!("{}", msg);
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+    }
     pub fn get_number_input(min: usize , max: usize) -> usize {
         loop {
             let mut input = String::new();
