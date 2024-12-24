@@ -50,8 +50,8 @@ impl SQLiteConnector {
             row.get(0)?,
             row.get(1)?,
             row.get(2)?,
-            self.get_did_from_id(row.get(3)?)?,
-            self.get_did_from_id(row.get(4)?)?,
+            self.get_did_from_id(row.get(3)?).unwrap_or_default(),
+            self.get_did_from_id(row.get(4)?).unwrap_or_default(),
             NaiveDateTime::parse_from_str(&created_at, "%Y-%m-%d %H:%M:%S")?,
         ))
     }
@@ -139,7 +139,13 @@ impl DBConnector for SQLiteConnector {
 
     fn get_stored_vcs(&self) -> Result<Vec<Vc>> {
         let sql_query = r#"
-            SELECT id, vc, type, issuer, holder, created_at FROM vcs
+            SELECT vcs.id, vc, type, issuer, holder, vcs.created_at
+            FROM
+                vcs
+            INNER JOIN
+                dids AS issuer_did ON vcs.issuer = issuer_did.id
+            INNER JOIN
+                dids AS holder_did ON vcs.holder = holder_did.id
         "#;
 
         let mut stmt = self.conn.prepare(sql_query)?;

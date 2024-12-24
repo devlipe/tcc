@@ -2,7 +2,8 @@ use crate::{
     is_command_available, utils, AppContext, Command, Config, Did, Input, ListDIDsCommand, Output,
     ScreenEvent, VariablesConfig, VerifyVCCommand,
 };
-use crossterm::style::Stylize;
+
+use colored::*;
 
 use identity_iota::core::{FromJson, Url};
 use identity_iota::credential::{Credential, CredentialBuilder, Jwt, Subject};
@@ -67,6 +68,7 @@ impl CreateVCCommand<'_> {
         let credential: Credential = CredentialBuilder::default()
             .issuer(Url::parse(issuer_document.id().as_str())?)
             .type_(&credential_type)
+            .non_transferable(true)
             .subject(subject)
             .build()?;
 

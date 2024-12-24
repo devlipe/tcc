@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, Output, ScreenEvent};
+use crate::{AppContext, Command, Input, Output, ScreenEvent};
 use identity_iota::iota::{IotaClientExt, IotaDocument, IotaIdentityClientExt, NetworkName};
 use identity_iota::storage::{JwkDocumentExt, JwkMemStore};
 use identity_iota::verification::jws::JwsAlgorithm;
@@ -61,8 +61,8 @@ impl CreateDIDCommand<'_> {
         animation_handle.await?;
 
         Output::print_during_loading("DID created successfully!");
-        // Sleep for 2 seconds to allow the user to read the message
-        Output::cooldown().await;
+        
+        Input::wait_for_user_input("Press any key to continue...");
 
         Ok(ScreenEvent::Success)
     }

@@ -4,7 +4,7 @@ use identity_iota::iota::{IotaDID, IotaDocument};
 use identity_iota::prelude::Resolver;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Did {
     id: i64,
     did: String,
@@ -23,6 +23,7 @@ impl Did {
             created_at,
         }
     }
+    
 
     pub fn id(&self) -> i64 {
         self.id
