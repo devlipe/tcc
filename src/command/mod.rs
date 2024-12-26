@@ -7,6 +7,7 @@ pub use list_dids_command::*;
 pub use list_vcs_command::*;
 pub use main_menu_command::*;
 pub use verify_vc_command::*;
+pub use create_vp_command::*;
 
 mod command;
 mod create_did_command;
@@ -17,3 +18,4 @@ mod list_dids_command;
 mod list_vcs_command;
 mod main_menu_command;
 mod verify_vc_command;
+mod create_vp_command;

@@ -1,6 +1,6 @@
 use crate::{AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc};
 use anyhow::Result;
-use crossterm::style::Stylize;
+use colored::*;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::Object;
 use identity_iota::credential::{
@@ -78,7 +78,7 @@ impl VerifyVCCommand<'_> {
         Ok(decoded_vc)
     }
 
-    fn choose_vc(&self) -> Result<Vc> {
+    pub fn choose_vc(&self) -> Result<Vc> {
         let vcs: Vec<Vc> = self.context.db.get_stored_vcs()?;
         let vc = self.get_vc(&vcs)?;
         Ok(vc)
@@ -86,7 +86,7 @@ impl VerifyVCCommand<'_> {
 
     fn get_vc(&self, vcs: &Vec<Vc>) -> Result<Vc> {
         self.print_tile();
-        let index = Output::display_with_pagination(&vcs, Self::choose_vc_table, 15, true);
+        let index = Output::display_with_pagination(&vcs, Self::choose_vc_table, 2, true);
         let vc = vcs.get(index - 1);
         match vc {
             Some(vc) => Ok(vc.clone()),
@@ -107,7 +107,7 @@ impl VerifyVCCommand<'_> {
 
     async fn get_did_document(&self, dids: &Vec<Did>) -> Result<IotaDocument> {
         self.print_tile();
-        let index = Output::display_with_pagination(&dids, Self::choose_did_table, 2, true);
+        let index = Output::display_with_pagination(&dids, Self::choose_did_table, 15, true);
         let did = dids.get(index - 1);
         match did {
             Some(did) => Ok(did.resolve_to_iota_document(&self.context.resolver).await),

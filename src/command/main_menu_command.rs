@@ -28,6 +28,7 @@ impl MainMenuCommand {
             ("List Created Items".to_string(), ScreenEvent::SelectListItems),
             ("Create a new DID".to_string(), ScreenEvent::SelectCreateDID),
             ("Create a new VC".to_string(), ScreenEvent::SelectCreateVC),
+            ("Create a new VP".to_string(), ScreenEvent::SelectCreateVP),
             ("Verify a VC".to_string(), ScreenEvent::SelectVerifyVC),
             ("Exit".to_string(), ScreenEvent::Cancel),
         ];
