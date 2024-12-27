@@ -2,18 +2,18 @@ use crate::{
     AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc,
 };
 use anyhow::Result;
-use colored::*;
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, ExecutableCommand};
 use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::core::{Duration as IotaDuration, Object};
 use identity_iota::core::Timestamp;
+use identity_iota::core::{Duration as IotaDuration, Object};
 use identity_iota::credential::{DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jwt, JwtCredentialValidator, JwtPresentationOptions, JwtPresentationValidationOptions, JwtPresentationValidator, JwtPresentationValidatorUtils, SubjectHolderRelationship};
 use identity_iota::credential::{JwtCredentialValidatorUtils, Presentation};
 use identity_iota::did::{CoreDID, DID};
 use identity_iota::iota::IotaDocument;
 use std::collections::HashMap;
 
+use colored::Colorize;
 use rand::Rng;
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -30,7 +30,10 @@ use identity_iota::credential::JwtCredentialValidationOptions;
 pub struct CreateVPCommand<'a> {
     context: &'a AppContext,
     verifier: Option<Did>,
+    vc: Option<Vc>
+    
 }
+
 
 impl Command for CreateVPCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
@@ -39,19 +42,23 @@ impl Command for CreateVPCommand<'_> {
         })
         .unwrap_or_else(|e| {
             println!("Error: {}", e);
+            Input::wait_for_user_input("Press enter to continue");
             ScreenEvent::Cancel
         })
     }
 
     fn print_tile(&self) {
-        let title = match &self.verifier {
-            Some(verifier) => format!(
-                "{} | Verifier: {}",
-                "Create VP".bold().blue(),
-                &verifier.name().purple()
-            ),
-            None => "Create VP".bold().blue().to_string(),
-        };
+        let mut title = "Create VP".bold().blue();
+    
+        if let Some(verifier) = &self.verifier {
+            title = format!("{} {} {}", title,  "| Verifier:" , verifier.name().bold().purple()).into();
+        }
+
+        // If `holder` is present, append its name to the title
+        if let Some(vc) = &self.vc {
+            title = format!("{} {} {}", title, "| Holder:", vc.holder().name().bold().purple()).into();
+            title = format!("{} {} {}", title, "| Type:", vc.tp().bold().purple()).into();      
+        }
 
         Output::clear_screen();
         println!("\n{}", title);
@@ -65,6 +72,7 @@ impl CreateVPCommand<'_> {
         CreateVPCommand {
             context,
             verifier: None,
+            vc: None
         }
     }
 
@@ -75,29 +83,33 @@ impl CreateVPCommand<'_> {
         self.verifier = Some(verifier_did);
         let mut vc = self.choose_vc();
         self.confirm_vc_selection(&mut vc).await;
+        self.vc = Some(vc.clone());
+
 
         self.create_vp(&verifier_document, &vc).await?;
 
         Ok(ScreenEvent::Success)
     }
 
-    async fn create_vp(&self, verifier_document: &IotaDocument, vc: &Vc) -> Result<()> {
+    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<()> {
         self.print_tile();
-        let challenge = self.exchange_challenge();
         let expires = self.define_expiration();
+        let challenge = self.exchange_challenge();
 
         let vc_jwt = Jwt::from(vc.vc().to_string());
 
-        let presentation: Presentation<Jwt> =
-            PresentationBuilder::new(verifier_document.id().to_url().into(), Default::default())
-                .credential(vc_jwt)
-                .build()?;
 
         print!("Holder is signing the VP...");
         let holder_document = vc
             .holder()
             .resolve_to_iota_document(&self.context.resolver)
             .await;
+        
+        
+        let presentation: Presentation<Jwt> =
+            PresentationBuilder::new(holder_document.id().to_url().into(), Default::default())
+                .credential(vc_jwt)
+                .build()?;
         // and include the requested challenge and expiry timestamp.
         let presentation_jwt: Jwt = holder_document
             .create_presentation_jwt(
@@ -167,14 +179,14 @@ impl CreateVPCommand<'_> {
     fn define_expiration(&self) -> Timestamp {
         //Ask for the expiration time
         println!("Please enter the expiration time in minutes:");
-        let expiration_time = Input::get_number_input(1, 60);
+        let expiration_time = Input::get_number_input(0, 60);
         let expiration = Timestamp::now_utc()
             .checked_add(IotaDuration::minutes(expiration_time as u32))
             .unwrap();
         println!(
             "{} {} {}",
             "Verifier and Hold have agreed upon",
-            expiration.to_string().green(),
+            expiration_time.to_string().green(),
             "minutes expiration".green()
         );
 
