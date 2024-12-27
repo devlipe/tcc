@@ -52,6 +52,7 @@ impl SQLiteConnector {
             row.get(2)?,
             self.get_did_from_id(row.get(3)?).unwrap_or_default(),
             self.get_did_from_id(row.get(4)?).unwrap_or_default(),
+            row.get::<_, String>(5)?.to_lowercase() == "true",
             NaiveDateTime::parse_from_str(&created_at, "%Y-%m-%d %H:%M:%S")?,
         ))
     }
@@ -107,15 +108,15 @@ impl DBConnector for SQLiteConnector {
         Ok(did_iter)
     }
 
-    fn save_vc(&self, vc: &str, issuer: i64, holder: i64, tp: &String) -> Result<usize> {
+    fn save_vc(&self, vc: &str, issuer: i64, holder: i64, tp: &String, sd: bool) -> Result<usize> {
         let sql_query = r#"
-            INSERT INTO vcs (vc, type, issuer, holder, created_at)
-            VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+            INSERT INTO vcs (vc, type, issuer, holder, sd, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
         "#;
 
         self.execute(
             sql_query,
-            [vc, tp, &issuer.to_string(), &holder.to_string()],
+            [vc, tp, &issuer.to_string(), &holder.to_string(), sd.to_string().as_str()],
         )
         .map_err(|e| e.into())
     }
@@ -139,7 +140,7 @@ impl DBConnector for SQLiteConnector {
 
     fn get_stored_vcs(&self) -> Result<Vec<Vc>> {
         let sql_query = r#"
-            SELECT vcs.id, vc, type, issuer, holder, vcs.created_at
+            SELECT vcs.id, vc, type, issuer, holder, sd, vcs.created_at
             FROM
                 vcs
             INNER JOIN

@@ -8,7 +8,9 @@ pub struct Vc {
     tp: String,
     issuer: Did,
     holder: Did,
+    sd: bool,
     created_at: NaiveDateTime,
+    
 }
 
 impl Vc {
@@ -18,6 +20,7 @@ impl Vc {
         tp: String,
         issuer: Did,
         holder: Did,
+        sd: bool,
         created_at: NaiveDateTime,
     ) -> Self {
         Self {
@@ -26,6 +29,7 @@ impl Vc {
             tp,
             issuer,
             holder,
+            sd,
             created_at,
         }
     }
@@ -52,5 +56,9 @@ impl Vc {
 
     pub fn created_at(&self) -> NaiveDateTime {
         self.created_at
+    }
+    
+    pub fn sd(&self) -> bool {
+        self.sd
     }
 }

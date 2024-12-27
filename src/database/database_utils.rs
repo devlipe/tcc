@@ -24,6 +24,7 @@ pub fn create_vc_table(sqlite: &SQLiteConnector) -> Result<usize> {
                 type TEXT NOT NULL,
                 issuer INTEGER NOT NULL,
                 holder INTEGER NOT NULL,
+                sd BOOLEAN DEFAULT FALSE,
                 FOREIGN KEY (issuer) REFERENCES dids(id),
                 FOREIGN KEY (holder) REFERENCES dids(id)                                            
         )"#;

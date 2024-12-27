@@ -40,7 +40,7 @@ impl ListVCsCommand<'_> {
         table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
         // Add header row
         table.set_header(vec![
-            "Row", "Holder", "Issuer", "Type", "JWT", "Created", "Id",
+            "Row", "Holder", "Issuer", "Type", "SD", "JWT", "Created", "Id",
         ]);
 
         // Add rows for each DID
@@ -51,6 +51,7 @@ impl ListVCsCommand<'_> {
                 Cell::new(vc.holder().name()),
                 Cell::new(vc.issuer().name()),
                 Cell::new(vc.tp()),
+                Cell::new(vc.sd().to_string()),
                 Cell::new(vc.vc()),
                 Cell::new(vc.created_at()),
                 Cell::new(vc.id()),
