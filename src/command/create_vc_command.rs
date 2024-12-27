@@ -4,7 +4,6 @@ use crate::{
 };
 
 use colored::*;
-
 use identity_iota::core::{FromJson, Url};
 use identity_iota::credential::{Credential, CredentialBuilder, Jwt, Subject};
 use identity_iota::did::DID;
@@ -119,6 +118,14 @@ impl CreateVCCommand<'_> {
         &self,
     ) -> anyhow::Result<(IotaDocument, Did, IotaDocument, Did, ScreenEvent)> {
         let dids = self.context.db.get_stored_dids()?;
+        
+        // Check if there are any DIDs stored
+        if dids.is_empty() {
+            println!("{}", "No DIDs found. Please create a DID first.".red().bold());
+            Input::wait_for_user_input("Press any key to continue...");
+            return Err(anyhow::anyhow!("No DIDs found"));
+        }
+        
         let (mut issuer_document, mut issuer): (IotaDocument, Did) =
             self.get_issuer_did(&dids).await;
 

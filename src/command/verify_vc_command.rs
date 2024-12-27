@@ -35,7 +35,7 @@ impl VerifyVCCommand<'_> {
         VerifyVCCommand { context }
     }
 
-    pub async fn handle_verify_vc(&self) -> anyhow::Result<ScreenEvent> {
+    pub async fn handle_verify_vc(&self) -> Result<ScreenEvent> {
         let vc: Vc = self.choose_vc()?;
 
         // Print the VC to be verified
@@ -80,6 +80,12 @@ impl VerifyVCCommand<'_> {
 
     pub fn choose_vc(&self) -> Result<Vc> {
         let vcs: Vec<Vc> = self.context.db.get_stored_vcs()?;
+        
+        if vcs.is_empty() {
+            println!("{}", "No VCs found. Please create a VC first.".red().bold());
+            Input::wait_for_user_input("Press enter to continue");
+            return Err(anyhow::anyhow!("No VCs found"));
+        }
         let vc = self.get_vc(&vcs)?;
         Ok(vc)
     }

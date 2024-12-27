@@ -90,11 +90,11 @@ impl CreateVPCommand<'_> {
     }
 
     async fn handle_vp_creation(&mut self) -> Result<ScreenEvent> {
-        let (mut verifier_document, mut verifier_did) = self.choose_did().await;
+        let (mut verifier_document, mut verifier_did) = self.choose_did().await?;
         self.confirm_verifier_selection(&mut verifier_did, &mut verifier_document)
             .await;
         self.verifier = Some(verifier_did);
-        let mut vc = self.choose_vc();
+        let mut vc = self.choose_vc()?;
         self.confirm_vc_selection(&mut vc).await;
         self.vc = Some(vc.clone());
 
@@ -292,7 +292,7 @@ impl CreateVPCommand<'_> {
             match input.trim() {
                 "" => return,
                 "back" => {
-                    *vc = self.choose_vc();
+                    *vc = self.choose_vc().unwrap();
                 }
                 _ => continue,
             }
@@ -318,17 +318,24 @@ impl CreateVPCommand<'_> {
             match input.trim() {
                 "" => return,
                 "back" => {
-                    (*verifier_document, *verifier_did) = self.choose_did().await;
+                    (*verifier_document, *verifier_did) = self.choose_did().await.unwrap();
                 }
                 _ => continue,
             }
         }
     }
 
-    async fn choose_did(&self) -> (IotaDocument, Did) {
+    async fn choose_did(&self) -> Result<(IotaDocument, Did)> {
         self.print_tile();
         let dids = self.context.db.get_stored_dids().unwrap_or_default();
-        self.get_verifier_did(&dids).await
+
+        // Check if there are any DIDs stored
+        if dids.is_empty() {
+            println!("{}", "No DIDs found. Please create a DID first.".red().bold());
+            return Err(anyhow::anyhow!("No DIDs found"));
+        }
+        
+        Ok(self.get_verifier_did(&dids).await)
     }
 
     pub async fn get_verifier_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
@@ -346,11 +353,16 @@ impl CreateVPCommand<'_> {
         println!("Select the DID row to use as the verifier:");
     }
 
-    fn choose_vc(&self) -> Vc {
+    fn choose_vc(&self) -> Result<Vc> {
         self.print_tile();
         let vcs: Vec<Vc> = self.context.db.get_stored_vcs().unwrap_or_default();
+        if vcs.is_empty() {
+            println!("{}", "No VCs found. Please create one first.".red().bold());
+            
+            return Err(anyhow::anyhow!("No VCs found"));
+        }
         let vc = self.get_vc(&vcs).unwrap_or_default();
-        vc
+        Ok(vc)
     }
 
     fn get_vc(&self, vcs: &Vec<Vc>) -> Result<Vc> {
