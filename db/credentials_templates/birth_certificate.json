@@ -6,8 +6,10 @@
     "father": "Nome Do Pai"
   },
   "grandparents": {
-    "maternal": ["Nome da Avó Materna", "Nome do Avô Materno"],
-    "paternal": ["Nome da Avó Paterna", "Nome do Avô Paterno"]
+    "maternal_mother": "Nome da Avó Materna",
+    "maternal_father": "Nome do Avô Materno",
+    "paternal_mother": "Nome da Avó Paterna",
+    "paternal_father": "Nome do Avô Paterno"
   },
   "birthLocation": "Local de Nascimento (Hospital, Cidade, Estado, País)",
   "nationality": "Brasileira",

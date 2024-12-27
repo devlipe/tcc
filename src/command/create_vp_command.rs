@@ -7,7 +7,11 @@ use crossterm::{cursor, ExecutableCommand};
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::Timestamp;
 use identity_iota::core::{Duration as IotaDuration, Object};
-use identity_iota::credential::{DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jwt, JwtCredentialValidator, JwtPresentationOptions, JwtPresentationValidationOptions, JwtPresentationValidator, JwtPresentationValidatorUtils, SubjectHolderRelationship};
+use identity_iota::credential::{
+    DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jwt, JwtCredentialValidator,
+    JwtPresentationOptions, JwtPresentationValidationOptions, JwtPresentationValidator,
+    JwtPresentationValidatorUtils, SubjectHolderRelationship,
+};
 use identity_iota::credential::{JwtCredentialValidatorUtils, Presentation};
 use identity_iota::did::{CoreDID, DID};
 use identity_iota::iota::IotaDocument;
@@ -26,14 +30,11 @@ use identity_iota::storage::{JwkDocumentExt, JwsSignatureOptions};
 
 use identity_iota::credential::JwtCredentialValidationOptions;
 
-
 pub struct CreateVPCommand<'a> {
     context: &'a AppContext,
     verifier: Option<Did>,
-    vc: Option<Vc>
-    
+    vc: Option<Vc>,
 }
-
 
 impl Command for CreateVPCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
@@ -49,15 +50,27 @@ impl Command for CreateVPCommand<'_> {
 
     fn print_tile(&self) {
         let mut title = "Create VP".bold().blue();
-    
+
         if let Some(verifier) = &self.verifier {
-            title = format!("{} {} {}", title,  "| Verifier:" , verifier.name().bold().purple()).into();
+            title = format!(
+                "{} {} {}",
+                title,
+                "| Verifier:",
+                verifier.name().bold().purple()
+            )
+            .into();
         }
 
         // If `holder` is present, append its name to the title
         if let Some(vc) = &self.vc {
-            title = format!("{} {} {}", title, "| Holder:", vc.holder().name().bold().purple()).into();
-            title = format!("{} {} {}", title, "| Type:", vc.tp().bold().purple()).into();      
+            title = format!(
+                "{} {} {}",
+                title,
+                "| Holder:",
+                vc.holder().name().bold().purple()
+            )
+            .into();
+            title = format!("{} {} {}", title, "| Type:", vc.tp().bold().purple()).into();
         }
 
         Output::clear_screen();
@@ -72,7 +85,7 @@ impl CreateVPCommand<'_> {
         CreateVPCommand {
             context,
             verifier: None,
-            vc: None
+            vc: None,
         }
     }
 
@@ -85,27 +98,29 @@ impl CreateVPCommand<'_> {
         self.confirm_vc_selection(&mut vc).await;
         self.vc = Some(vc.clone());
 
+       let (vp_jwt, challenge) =  self.create_vp(&verifier_document, &vc).await?;
 
-        self.create_vp(&verifier_document, &vc).await?;
+        self.verify_jwt_presentation(challenge, &vp_jwt)
+            .await?;
+
+        Input::wait_for_user_input("Press enter to continue");
 
         Ok(ScreenEvent::Success)
     }
 
-    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<()> {
+    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<(Jwt,String)> {
         self.print_tile();
         let expires = self.define_expiration();
         let challenge = self.exchange_challenge();
 
         let vc_jwt = Jwt::from(vc.vc().to_string());
 
-
         print!("Holder is signing the VP...");
         let holder_document = vc
             .holder()
             .resolve_to_iota_document(&self.context.resolver)
             .await;
-        
-        
+
         let presentation: Presentation<Jwt> =
             PresentationBuilder::new(holder_document.id().to_url().into(), Default::default())
                 .credential(vc_jwt)
@@ -124,10 +139,18 @@ impl CreateVPCommand<'_> {
 
         print!("Sending presentation (as JWT) to the verifier...");
 
-        let presentation_verifier_options: JwsVerificationOptions =
-            JwsVerificationOptions::default().nonce(challenge.to_owned());
         println!("Ok!");
 
+        
+
+        Ok((presentation_jwt, challenge))
+    }
+
+    async fn verify_jwt_presentation(
+        &self,
+        challenge: String,
+        presentation_jwt: &Jwt,
+    ) -> Result<()> {
         // Resolve the holder's document.
         print!("Verifying the Holder of the VP...");
         let holder_did: CoreDID = JwtPresentationValidatorUtils::extract_holder(&presentation_jwt)?;
@@ -135,38 +158,46 @@ impl CreateVPCommand<'_> {
         println!("Ok!");
 
         print!("Verifying the VP Challenge and Expiration...");
+        let presentation_verifier_options: JwsVerificationOptions =
+            JwsVerificationOptions::default().nonce(challenge.to_owned());
         let presentation_validation_options = JwtPresentationValidationOptions::default()
             .presentation_verifier_options(presentation_verifier_options);
         let presentation: DecodedJwtPresentation<Jwt> =
             JwtPresentationValidator::with_signature_verifier(EdDSAJwsVerifier::default())
                 .validate(&presentation_jwt, &holder, &presentation_validation_options)?;
         println!("Ok!");
-    
+
         print!("Verifying the Issuer...");
         let jwt_credentials: &Vec<Jwt> = &presentation.presentation.verifiable_credential;
         let issuers: Vec<CoreDID> = jwt_credentials
             .iter()
             .map(JwtCredentialValidatorUtils::extract_issuer_from_jwt)
             .collect::<Result<Vec<CoreDID>, _>>()?;
-        let issuers_documents: HashMap<CoreDID, IotaDocument> = self.context.resolver.resolve_multiple(&issuers).await?;
+        let issuers_documents: HashMap<CoreDID, IotaDocument> =
+            self.context.resolver.resolve_multiple(&issuers).await?;
         println!("Ok!");
-        
+
         print!("Verifying the credentials and the relationship (Holder<>Subject)...");
         let credential_validator: JwtCredentialValidator<EdDSAJwsVerifier> =
             JwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default());
-        let validation_options: JwtCredentialValidationOptions = JwtCredentialValidationOptions::default()
-            .subject_holder_relationship(holder_did.to_url().into(), SubjectHolderRelationship::AlwaysSubject);
+        let validation_options: JwtCredentialValidationOptions =
+            JwtCredentialValidationOptions::default().subject_holder_relationship(
+                holder_did.to_url().into(),
+                SubjectHolderRelationship::AlwaysSubject,
+            );
         for (index, jwt_vc) in jwt_credentials.iter().enumerate() {
             // SAFETY: Indexing should be fine since we extracted the DID from each credential and resolved it.
             let issuer_document: &IotaDocument = &issuers_documents[&issuers[index]];
 
             let _decoded_credential: DecodedJwtCredential<Object> = credential_validator
-                .validate::<_, Object>(jwt_vc, issuer_document, &validation_options, FailFast::FirstError)?;
+                .validate::<_, Object>(
+                    jwt_vc,
+                    issuer_document,
+                    &validation_options,
+                    FailFast::FirstError,
+                )?;
         }
         println!("Ok!");
-        
-        Input::wait_for_user_input("Press enter to continue");
-        
         Ok(())
     }
 
