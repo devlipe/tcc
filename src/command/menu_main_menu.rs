@@ -25,11 +25,11 @@ impl Command for MainMenuCommand {
 impl MainMenuCommand {
     pub fn new() -> MainMenuCommand {
         let options = vec![
-            ("List Created Items".to_string(), ScreenEvent::SelectListItems),
-            ("Create a new DID".to_string(), ScreenEvent::SelectCreateDID),
-            ("Create a new VC".to_string(), ScreenEvent::SelectCreateVC),
-            ("Create a new VP".to_string(), ScreenEvent::SelectCreateVP),
-            ("Verify a VC".to_string(), ScreenEvent::SelectVerifyVC),
+            ("List Created Items".to_string(), ScreenEvent::ListItems),
+            ("Create a new DID".to_string(), ScreenEvent::CreateDID),
+            ("Create a new VC".to_string(), ScreenEvent::CreateVC),
+            ("Create a new VP".to_string(), ScreenEvent::CreateVP),
+            ("Verify a VC".to_string(), ScreenEvent::VerifyVC),
             ("Exit".to_string(), ScreenEvent::Cancel),
         ];
 

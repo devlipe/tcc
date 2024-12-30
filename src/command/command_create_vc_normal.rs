@@ -15,15 +15,15 @@ use std::io::Read;
 use std::path::Path;
 use std::{fs, io};
 
-pub struct CreateVCCommand<'a> {
+pub struct CreateVCNormalCommand<'a> {
     context: &'a AppContext,
 }
 
-impl Command for CreateVCCommand<'_> {
+impl Command for CreateVCNormalCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
         // Block on the async function using block_in_place
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.handle_vc_creation())
+            tokio::runtime::Handle::current().block_on(self.handle_vc_normal_creation())
         })
         .unwrap_or_else(|_| ScreenEvent::Cancel)
     }
@@ -34,12 +34,12 @@ impl Command for CreateVCCommand<'_> {
     }
 }
 
-impl CreateVCCommand<'_> {
-    pub fn new(context: &AppContext) -> CreateVCCommand {
-        CreateVCCommand { context }
+impl CreateVCNormalCommand<'_> {
+    pub fn new(context: &AppContext) -> CreateVCNormalCommand {
+        CreateVCNormalCommand { context }
     }
 
-    async fn handle_vc_creation(&self) -> anyhow::Result<ScreenEvent> {
+    async fn handle_vc_normal_creation(&self) -> anyhow::Result<ScreenEvent> {
         let (issuer_document, issuer, holder_document, holder, ok) = self.choose_dids().await?;
 
         match ok {
@@ -60,7 +60,7 @@ impl CreateVCCommand<'_> {
 
         let credential_type = Output::snake_to_camel_case(&template);
 
-        let json: Value = Self::build_json_credential(holder_document, &path)?;
+        let json: Value = utils::build_json_credential(holder_document, &path)?;
 
         let subject: Subject = Subject::from_json_value(json)?;
 
@@ -96,26 +96,9 @@ impl CreateVCCommand<'_> {
         Ok(ScreenEvent::Success)
     }
 
-    fn build_json_credential(holder_did: IotaDocument, path: &String) -> anyhow::Result<Value> {
-        // Read file content
-        let mut context = String::new();
-        File::open(&path)?.read_to_string(&mut context)?;
+    
 
-        // Parse to JSON
-        let mut json: Value = serde_json::from_str(&context)?;
-
-        // Ensure it's a JSON object
-        if let Value::Object(ref mut map) = json {
-            // Add the `id` key with the holder's ID
-            map.insert("id".to_string(), Value::String(holder_did.id().to_string()));
-        } else {
-            anyhow::bail!("File content is not a valid JSON object");
-        }
-
-        Ok(json)
-    }
-
-    async fn choose_dids(
+    pub(crate) async fn choose_dids(
         &self,
     ) -> anyhow::Result<(IotaDocument, Did, IotaDocument, Did, ScreenEvent)> {
         let dids = self.context.db.get_stored_dids()?;
@@ -148,7 +131,7 @@ impl CreateVCCommand<'_> {
         Ok((issuer_document, issuer, holder_document, holder, ok))
     }
 
-    fn create_credential(&self) -> anyhow::Result<(String, String)> {
+    pub(crate) fn create_credential(&self) -> anyhow::Result<(String, String)> {
         let template = self.choose_credential_template()?;
         let editor = self.choose_editor()?;
         let path = self.copy_template_to_file(&template)?;
@@ -314,7 +297,7 @@ impl CreateVCCommand<'_> {
         }
     }
 
-    fn print_information_status(
+    pub(crate) fn print_information_status(
         &self,
         issuer_did: &IotaDocument,
         issuer_name: &String,

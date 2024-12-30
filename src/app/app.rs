@@ -1,7 +1,7 @@
 use crate::{
-    AppContext, Command, CreateDIDCommand, CreateVCCommand, ExitAppCommand, ListCreatedItems,
-    ListDIDsCommand, ListVCsCommand, MainMenuCommand, ScreenEvent, ScreenFSM, ScreenState,
-    VerifyVCCommand, CreateVPCommand,
+    AppContext, Command, CreateDIDCommand, CreateVCMenu, CreateVCNormalCommand, CreateVCSDCommand,
+    CreateVPCommand, ExitAppCommand, ListCreatedItems, ListDIDsCommand, ListVCsCommand,
+    MainMenuCommand, ScreenEvent, ScreenFSM, ScreenState, VerifyVCCommand,
 };
 use rust_fsm::StateMachine;
 
@@ -22,15 +22,32 @@ impl App {
         loop {
             // Match the current state to choose the appropriate command
             let mut command: Box<dyn Command> = match self.fsm.state() {
+                // Main Menu
                 ScreenState::MainMenu => Box::new(MainMenuCommand::new()),
-                ScreenState::CreateDIDWorkflow => Box::new(CreateDIDCommand::new(&self.context)),
-                ScreenState::CreateVCWorkflow => Box::new(CreateVCCommand::new(&self.context)),
-                ScreenState::ListDIDsWorkflow => Box::new(ListDIDsCommand::new(&self.context)),
-                ScreenState::VerifyVCWorkflow => Box::new(VerifyVCCommand::new(&self.context)),
-                ScreenState::ExitAppWorkflow => Box::new(ExitAppCommand),
+
+                // List Created Items
                 ScreenState::ListItemsMenu => Box::new(ListCreatedItems::new()),
+                ScreenState::ListDIDsWorkflow => Box::new(ListDIDsCommand::new(&self.context)),
                 ScreenState::ListVCsWorkflow => Box::new(ListVCsCommand::new(&self.context)),
+
+                // Create DID
+                ScreenState::CreateDIDWorkflow => Box::new(CreateDIDCommand::new(&self.context)),
+
+                // Create VC
+                ScreenState::CreateVCMenu => Box::new(CreateVCMenu::new()),
+                ScreenState::CreateSDVCWorkflow => Box::new(CreateVCSDCommand::new(&self.context)),
+                ScreenState::CreateNormalVCWorkflow => {
+                    Box::new(CreateVCNormalCommand::new(&self.context))
+                }
+
+                // Verify VC
+                ScreenState::VerifyVCWorkflow => Box::new(VerifyVCCommand::new(&self.context)),
+
+                // Create VP
                 ScreenState::CreateVPWorkflow => Box::new(CreateVPCommand::new(&self.context)),
+
+                // Exit App
+                ScreenState::ExitAppWorkflow => Box::new(ExitAppCommand),
             };
 
             // Execute the command and get the resulting event

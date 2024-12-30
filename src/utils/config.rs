@@ -13,7 +13,6 @@ pub struct VariablesConfig {
     config: HashMap<String, String>,
 }
 
-
 // Singleton instance of VariablesConfig
 static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
     dotenv().ok(); // Load environment variables
@@ -46,9 +45,13 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
             ),
             (
                 "credentials_template_directory".to_string(),
-                env::var("CREDENTIALS_TEMPLATE_DIRECTORY").expect("CREDENTIALS_TEMPLATE_DIRECTORY must be set"),
-            )
-            
+                env::var("CREDENTIALS_TEMPLATE_DIRECTORY")
+                    .expect("CREDENTIALS_TEMPLATE_DIRECTORY must be set"),
+            ),
+            (
+                "credentials_sd_directory".to_string(),
+                env::var("CREDENTIALS_SD_DIRECTORY").expect("CREDENTIALS_SD_DIRECTORY must be set"),
+            ),
         ]),
     }
 });
@@ -61,8 +64,6 @@ impl VariablesConfig {
 
 // Implementation of the Config trait for VariablesConfig
 impl Config for VariablesConfig {
-
-
     fn get_value(&self, key: &str) -> &String {
         // Verify if the key exists and return the value
         self.config.get(key).expect("Key not found")

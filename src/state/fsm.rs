@@ -13,20 +13,25 @@ impl StateMachineImpl for ScreenFSM{
 
     fn transition(state: &ScreenState, event: &ScreenEvent) -> Option<ScreenState> {
         match (state, event) {
-            //
-            (ScreenState::MainMenu, ScreenEvent::SelectCreateDID) => Some(ScreenState::CreateDIDWorkflow),
-            (ScreenState::MainMenu, ScreenEvent::SelectCreateVC) => Some(ScreenState::CreateVCWorkflow),
-            (ScreenState::MainMenu, ScreenEvent::SelectVerifyVC) => Some(ScreenState::VerifyVCWorkflow),
-            (ScreenState::MainMenu, ScreenEvent::SelectListItems) => Some(ScreenState::ListItemsMenu),
-            (ScreenState::MainMenu, ScreenEvent::SelectCreateVP) => Some(ScreenState::CreateVPWorkflow),
-
+            // Main Menu
+            (ScreenState::MainMenu, ScreenEvent::ListItems) => Some(ScreenState::ListItemsMenu),
+            (ScreenState::MainMenu, ScreenEvent::CreateDID) => Some(ScreenState::CreateDIDWorkflow),
+            (ScreenState::MainMenu, ScreenEvent::CreateVC) => Some(ScreenState::CreateVCMenu),
+            (ScreenState::MainMenu, ScreenEvent::VerifyVC) => Some(ScreenState::VerifyVCWorkflow),
+            (ScreenState::MainMenu, ScreenEvent::CreateVP) => Some(ScreenState::CreateVPWorkflow),
+            
+            // List Create Items Menu
             (ScreenState::ListItemsMenu, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),
-            (ScreenState::ListItemsMenu, ScreenEvent::SelectListDIDs) => Some(ScreenState::ListDIDsWorkflow),
-            (ScreenState::ListItemsMenu, ScreenEvent::SelectListVCs) => Some(ScreenState::ListVCsWorkflow),
+            (ScreenState::ListItemsMenu, ScreenEvent::ListDIDs) => Some(ScreenState::ListDIDsWorkflow),
+            (ScreenState::ListItemsMenu, ScreenEvent::ListVCs) => Some(ScreenState::ListVCsWorkflow),
+            
+            // Create VC Menu
+            (ScreenState::CreateVCMenu, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),
+            (ScreenState::CreateVCMenu, ScreenEvent::CreateNormalVC) => Some(ScreenState::CreateNormalVCWorkflow),
+            (ScreenState::CreateVCMenu, ScreenEvent::CreateSDVC) => Some(ScreenState::CreateSDVCWorkflow),
             
              // Exit the program
             (ScreenState::MainMenu, ScreenEvent::Cancel) => Some(ScreenState::ExitAppWorkflow),
-            
             
             // In case of cancel, return to the main menu
             (_, ScreenEvent::Cancel) => Some(ScreenState::MainMenu),

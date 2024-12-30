@@ -1,6 +1,8 @@
 // Copyright 2020-2023 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fs::File;
+use std::io::Read;
 use anyhow::Context;
 use std::path::PathBuf;
 use std::process::Command;
@@ -195,6 +197,42 @@ pub fn random_credential_path() -> PathBuf {
     file.push(rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 32));
     file.set_extension("json");
     file.to_owned()
+}
+
+/// Builds a JSON credential by reading a file, parsing its content, and adding the holder's DID.
+///
+/// # Arguments
+///
+/// * `holder_did` - An `IotaDocument` representing the holder's DID.
+/// * `path` - A reference to a `String` containing the path to the JSON file.
+///
+/// # Returns
+///
+/// * `anyhow::Result<Value>` - A result containing the modified JSON value or an error.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The file cannot be opened or read.
+/// * The file content is not a valid JSON object.
+/// * The JSON parsing fails.
+pub fn build_json_credential(holder_did: IotaDocument, path: &String) -> anyhow::Result<Value> {
+    // Read file content
+    let mut context = String::new();
+    File::open(&path)?.read_to_string(&mut context)?;
+
+    // Parse to JSON
+    let mut json: Value = serde_json::from_str(&context)?;
+
+    // Ensure it's a JSON object
+    if let Value::Object(ref mut map) = json {
+        // Add the `id` key with the holder's ID
+        map.insert("id".to_string(), Value::String(holder_did.id().to_string()));
+    } else {
+        anyhow::bail!("File content is not a valid JSON object");
+    }
+
+    Ok(json)
 }
 
 fn create_directory_is_not_exists(path: &PathBuf) -> anyhow::Result<()> {
