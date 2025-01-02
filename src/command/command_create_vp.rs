@@ -98,17 +98,16 @@ impl CreateVPCommand<'_> {
         self.confirm_vc_selection(&mut vc).await;
         self.vc = Some(vc.clone());
 
-       let (vp_jwt, challenge) =  self.create_vp(&verifier_document, &vc).await?;
+        let (vp_jwt, challenge) = self.create_vp(&verifier_document, &vc).await?;
 
-        self.verify_jwt_presentation(challenge, &vp_jwt)
-            .await?;
+        self.verify_jwt_presentation(challenge, &vp_jwt).await?;
 
         Input::wait_for_user_input("Press enter to continue");
 
         Ok(ScreenEvent::Success)
     }
 
-    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<(Jwt,String)> {
+    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<(Jwt, String)> {
         self.print_tile();
         let expires = self.define_expiration();
         let challenge = self.exchange_challenge();
@@ -140,8 +139,6 @@ impl CreateVPCommand<'_> {
         print!("Sending presentation (as JWT) to the verifier...");
 
         println!("Ok!");
-
-        
 
         Ok((presentation_jwt, challenge))
     }
@@ -331,14 +328,17 @@ impl CreateVPCommand<'_> {
 
         // Check if there are any DIDs stored
         if dids.is_empty() {
-            println!("{}", "No DIDs found. Please create a DID first.".red().bold());
+            println!(
+                "{}",
+                "No DIDs found. Please create a DID first.".red().bold()
+            );
             return Err(anyhow::anyhow!("No DIDs found"));
         }
-        
+
         Ok(self.get_verifier_did(&dids).await)
     }
 
-    pub async fn get_verifier_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
+    async fn get_verifier_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
         let index = Output::display_with_pagination(dids, Self::choose_verifier_table, 15, true);
         let did: Did = dids.get(index - 1).unwrap().clone();
@@ -358,7 +358,7 @@ impl CreateVPCommand<'_> {
         let vcs: Vec<Vc> = self.context.db.get_stored_vcs().unwrap_or_default();
         if vcs.is_empty() {
             println!("{}", "No VCs found. Please create one first.".red().bold());
-            
+
             return Err(anyhow::anyhow!("No VCs found"));
         }
         let vc = self.get_vc(&vcs).unwrap_or_default();

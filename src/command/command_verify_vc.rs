@@ -1,12 +1,16 @@
-use crate::{AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc};
+use crate::{
+    AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc,
+};
 use anyhow::Result;
-use colored::*;
+use colored::Colorize;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::Object;
+use identity_iota::credential::SdJwtCredentialValidator;
 use identity_iota::credential::{
     DecodedJwtCredential, FailFast, Jwt, JwtCredentialValidationOptions, JwtCredentialValidator,
 };
 use identity_iota::iota::IotaDocument;
+use sd_jwt_payload::{SdJwt, SdObjectDecoder};
 
 pub struct VerifyVCCommand<'a> {
     context: &'a AppContext,
@@ -38,19 +42,32 @@ impl VerifyVCCommand<'_> {
     pub async fn handle_verify_vc(&self) -> Result<ScreenEvent> {
         let vc: Vc = self.choose_vc()?;
 
+        if vc.sd() {
+            println!(
+                "{}",
+                "You choose a Selective Disclosure VC.".yellow().bold()
+            );
+            println!(
+                "{}",
+                "Please use the Create VP option to verify this Selective Disclosure VC."
+                    .yellow()
+                    .bold()
+            );
+            Input::wait_for_user_input("Press any key to continue...");
+            return Ok(ScreenEvent::Success);
+        }
+
         // Print the VC to be verified
         println!("Verifying the following VC:");
         println!("{:?}", vc);
 
         let issuer_document = self.choose_did_document().await?;
-        
-        let jwt_token = Jwt::from(vc.vc().to_string());
-        
-        let decoded_vc = Self::verify_credential(&jwt_token, &issuer_document);
-        
+
+        let decoded_vc = Self::verify_credential(&vc, &issuer_document);
+
         match decoded_vc {
             Ok(decoded_vc) => {
-                println!("{}","VC verified successfully:".green().bold());
+                println!("{}", "VC verified successfully:".green().bold());
                 println!("{:?}", decoded_vc);
             }
             Err(e) => {
@@ -62,7 +79,35 @@ impl VerifyVCCommand<'_> {
         Ok(ScreenEvent::Success)
     }
 
-    pub fn verify_credential(
+    fn verify_credential(vc: &Vc, issuer_document: &IotaDocument) -> Result<DecodedJwtCredential> {
+        let decoded_vc: DecodedJwtCredential<Object>;
+        if vc.sd() {
+            println!("SD VC");
+            decoded_vc = Self::verify_sd_vc(vc, &issuer_document)?;
+        } else {
+            let credential_jwt = Jwt::from(vc.vc().to_string());
+            decoded_vc = Self::verify_normal_vc(&credential_jwt, &issuer_document)?;
+            println!("Normal VC verified successfully");
+        }
+
+        Ok(decoded_vc)
+    }
+
+    fn verify_sd_vc(vc: &Vc, issuer_document: &&IotaDocument) -> Result<DecodedJwtCredential> {
+        let sd_jwt = SdJwt::parse(&vc.vc())?;
+        let decoder = SdObjectDecoder::new_with_sha256();
+        let validator =
+            SdJwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default(), decoder);
+        let validation = validator.validate_credential::<_, Object>(
+            &sd_jwt,
+            &issuer_document,
+            &JwtCredentialValidationOptions::default(),
+            FailFast::FirstError,
+        )?;
+        Ok(validation)
+    }
+
+    pub fn verify_normal_vc(
         credential_jwt: &Jwt,
         issuer_document: &IotaDocument,
     ) -> Result<DecodedJwtCredential> {
@@ -74,13 +119,12 @@ impl VerifyVCCommand<'_> {
                     &JwtCredentialValidationOptions::default(),
                     FailFast::FirstError,
                 )?;
-
         Ok(decoded_vc)
     }
 
     pub fn choose_vc(&self) -> Result<Vc> {
         let vcs: Vec<Vc> = self.context.db.get_stored_vcs()?;
-        
+
         if vcs.is_empty() {
             println!("{}", "No VCs found. Please create a VC first.".red().bold());
             Input::wait_for_user_input("Press enter to continue");

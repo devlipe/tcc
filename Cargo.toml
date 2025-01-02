@@ -8,7 +8,7 @@ anyhow = "1.0.89"
 crossterm = "0.28.1"
 dotenv = "0.15.0"
 identity_eddsa_verifier = "1.4.0"
-identity_iota = { version = "1.2.0", features = ["iota-client", "client", "memstore", "domain-linkage", "revocation-bitmap", "status-list-2021", "jpt-bbs-plus", "resolver"] }
+identity_iota = { version = "1.2.0", features = ["iota-client", "client", "memstore", "domain-linkage", "revocation-bitmap", "status-list-2021", "jpt-bbs-plus", "resolver", "sd-jwt"] }
 identity_stronghold = "1.4.0"
 iota-sdk = "1.1.5"
 once_cell = "1.20.2"

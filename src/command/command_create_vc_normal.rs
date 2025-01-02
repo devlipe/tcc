@@ -10,8 +10,6 @@ use identity_iota::did::DID;
 use identity_iota::iota::IotaDocument;
 use identity_iota::storage::{JwkDocumentExt, JwsSignatureOptions};
 use serde_json::Value;
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 use std::{fs, io};
 
@@ -82,7 +80,7 @@ impl CreateVCNormalCommand<'_> {
             .await?;
 
         let _decoded_credential =
-            VerifyVCCommand::verify_credential(&credential_jwt, &issuer_document)?;
+            VerifyVCCommand::verify_normal_vc(&credential_jwt, &issuer_document)?;
 
         // Save the credential to the database
         self.context.db.save_vc(
@@ -95,8 +93,6 @@ impl CreateVCNormalCommand<'_> {
 
         Ok(ScreenEvent::Success)
     }
-
-    
 
     pub(crate) async fn choose_dids(
         &self,
@@ -136,35 +132,9 @@ impl CreateVCNormalCommand<'_> {
         let editor = self.choose_editor()?;
         let path = self.copy_template_to_file(&template)?;
 
-        Self::edit_file(editor, &path)?;
+        utils::edit_file(editor, &path)?;
 
         Ok((path, template))
-    }
-
-    fn edit_file(editor: String, path: &String) -> anyhow::Result<()> {
-        if editor == "code" {
-            let status = std::process::Command::new(editor)
-                .arg("--wait")
-                .arg(&path)
-                .status()
-                .expect("Failed to open editor");
-
-            if !status.success() {
-                eprintln!("Failed to open editor");
-                return Err(anyhow::anyhow!("Failed to open editor"));
-            }
-        } else {
-            let status = std::process::Command::new(editor)
-                .arg(&path)
-                .status()
-                .expect("Failed to open editor");
-
-            if !status.success() {
-                eprintln!("Failed to open editor");
-                return Err(anyhow::anyhow!("Failed to open editor"));
-            }
-        }
-        Ok(())
     }
 
     fn copy_template_to_file(&self, template: &String) -> anyhow::Result<String> {
@@ -177,8 +147,6 @@ impl CreateVCNormalCommand<'_> {
 
         // copy the template to the file
         fs::copy(file_path, &copy_file)?;
-
-        println!("Template copied to: {}", &copy_file.display());
 
         Ok(copy_file.to_str().unwrap().to_string())
     }
@@ -216,7 +184,7 @@ impl CreateVCNormalCommand<'_> {
         }
     }
 
-    fn choose_editor(&self) -> anyhow::Result<String> {
+    pub fn choose_editor(&self) -> anyhow::Result<String> {
         self.print_tile();
         let editors = ["nvim", "vim", "nano", "vi", "code"];
 
@@ -309,7 +277,7 @@ impl CreateVCNormalCommand<'_> {
         println!("Holder DID: {} {}", holder_name, holder_did.id());
     }
 
-    pub async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
+    async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
         let index = Output::display_with_pagination(dids, Self::choose_issuer_table, 15, true);
         let did: Did = self.get_did(dids, index);
@@ -324,7 +292,7 @@ impl CreateVCNormalCommand<'_> {
         println!("Select the DID row to use as the issuer:");
     }
 
-    pub async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
+    async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
         let index = Output::display_with_pagination(dids, Self::choose_holder_table, 15, true);
 
@@ -340,7 +308,7 @@ impl CreateVCNormalCommand<'_> {
         println!("Select the DID row to use as the holder:");
     }
 
-    pub fn get_did(&self, dids: &Vec<Did>, index: usize) -> Did {
+    fn get_did(&self, dids: &Vec<Did>, index: usize) -> Did {
         let selected_did = dids.get(index - 1).unwrap();
         selected_did.clone()
     }

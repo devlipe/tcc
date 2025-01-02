@@ -2,8 +2,9 @@ use crate::{extract_kid, DBConnector, Did, Vc};
 use anyhow::Error;
 use anyhow::Result;
 use chrono::NaiveDateTime;
+use identity_iota::did::DID;
 use identity_iota::iota::IotaDocument;
-use rusqlite::{Connection, Params, Row};
+use rusqlite::{params, Connection, Params, Row};
 
 // Define a struct to represent the SQLite database connection
 pub struct SQLiteConnector {
@@ -45,14 +46,18 @@ impl SQLiteConnector {
     }
 
     fn build_vc_model(&self, row: &Row) -> Result<Vc, Error> {
-        let created_at: String = row.get(5)?;
+        println!("Row: {:?}", row);
+        let created_at: String = row.get(6)?;
+
+        // print the type of row.get(5) to see if it is a boolean
+        let sd = row.get::<_, bool>(5)?;
         Ok(Vc::new(
             row.get(0)?,
             row.get(1)?,
             row.get(2)?,
             self.get_did_from_id(row.get(3)?).unwrap_or_default(),
             self.get_did_from_id(row.get(4)?).unwrap_or_default(),
-            row.get::<_, String>(5)?.to_lowercase() == "true",
+            sd,
             NaiveDateTime::parse_from_str(&created_at, "%Y-%m-%d %H:%M:%S")?,
         ))
     }
@@ -73,7 +78,7 @@ impl DBConnector for SQLiteConnector {
 
         let fragment = extract_kid(did)?;
 
-        self.execute(sql_query, [did.id().to_string(), fragment, owner.clone()])
+        self.execute(sql_query, params![did.id().as_str(), fragment, owner])
             .map_err(|e| e.into())
     }
 
@@ -114,11 +119,8 @@ impl DBConnector for SQLiteConnector {
             VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
         "#;
 
-        self.execute(
-            sql_query,
-            [vc, tp, &issuer.to_string(), &holder.to_string(), sd.to_string().as_str()],
-        )
-        .map_err(|e| e.into())
+        self.execute(sql_query, params![vc, tp, issuer, holder, sd])
+            .map_err(|e| e.into())
     }
 
     fn get_vc_from_id(&self, id: i64) -> Result<Vc> {
