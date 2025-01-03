@@ -54,9 +54,7 @@ impl<'a> CreateVCSDCommand<'a> {
         let json: Value = utils::build_json_credential(holder_document, &path)?;
 
         let json_paths = self.get_json_sd_paths(template, &json);
-
-        println!("{:?}", json_paths);
-
+        
         let subject: Subject = Subject::from_json_value(json)?;
 
         let credential: Credential = CredentialBuilder::default()
@@ -79,8 +77,6 @@ impl<'a> CreateVCSDCommand<'a> {
             )
             .await?;
         
-        println!("JWS: {:?}", jwt);
-
         let disclosures: Vec<String> = disclosures
             .into_iter()
             .map(|disclosure| disclosure.to_string())

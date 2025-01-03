@@ -42,20 +42,20 @@ impl VerifyVCCommand<'_> {
     pub async fn handle_verify_vc(&self) -> Result<ScreenEvent> {
         let vc: Vc = self.choose_vc()?;
 
-        if vc.sd() {
-            println!(
-                "{}",
-                "You choose a Selective Disclosure VC.".yellow().bold()
-            );
-            println!(
-                "{}",
-                "Please use the Create VP option to verify this Selective Disclosure VC."
-                    .yellow()
-                    .bold()
-            );
-            Input::wait_for_user_input("Press any key to continue...");
-            return Ok(ScreenEvent::Success);
-        }
+        // if vc.sd() {
+        //     println!(
+        //         "{}",
+        //         "You choose a Selective Disclosure VC.".yellow().bold()
+        //     );
+        //     println!(
+        //         "{}",
+        //         "Please use the Create VP option to verify this Selective Disclosure VC."
+        //             .yellow()
+        //             .bold()
+        //     );
+        //     Input::wait_for_user_input("Press any key to continue...");
+        //     return Ok(ScreenEvent::Success);
+        // }
 
         // Print the VC to be verified
         println!("Verifying the following VC:");
@@ -82,12 +82,10 @@ impl VerifyVCCommand<'_> {
     fn verify_credential(vc: &Vc, issuer_document: &IotaDocument) -> Result<DecodedJwtCredential> {
         let decoded_vc: DecodedJwtCredential<Object>;
         if vc.sd() {
-            println!("SD VC");
             decoded_vc = Self::verify_sd_vc(vc, &issuer_document)?;
         } else {
             let credential_jwt = Jwt::from(vc.vc().to_string());
             decoded_vc = Self::verify_normal_vc(&credential_jwt, &issuer_document)?;
-            println!("Normal VC verified successfully");
         }
 
         Ok(decoded_vc)
@@ -167,6 +165,6 @@ impl VerifyVCCommand<'_> {
 
     fn choose_did_table(dids: &Vec<Did>, first_row_index: usize) {
         ListDIDsCommand::display_dids_table(dids, first_row_index);
-        println!("Choose a DID to verify the credential by entering the row number:");
+        println!("Choose a DID to verify as the issuer of the credential by entering the row number:");
     }
 }
