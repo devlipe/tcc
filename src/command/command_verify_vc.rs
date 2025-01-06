@@ -1,5 +1,6 @@
 use crate::{
-    AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc,
+    AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent,
+    Vc,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -165,6 +166,8 @@ impl VerifyVCCommand<'_> {
 
     fn choose_did_table(dids: &Vec<Did>, first_row_index: usize) {
         ListDIDsCommand::display_dids_table(dids, first_row_index);
-        println!("Choose a DID to verify as the issuer of the credential by entering the row number:");
+        println!(
+            "Choose a DID to verify as the issuer of the credential by entering the row number:"
+        );
     }
 }

@@ -1,24 +1,26 @@
 use crate::{
-    AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent, Vc,
+    utils, AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent,
+    Vc,
 };
 use anyhow::Result;
+use colored::Colorize;
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, ExecutableCommand};
 use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::core::Timestamp;
 use identity_iota::core::{Duration as IotaDuration, Object};
+use identity_iota::core::{Timestamp, ToJson};
 use identity_iota::credential::{
-    DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jwt, JwtCredentialValidator,
+    DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jws, Jwt, JwtCredentialValidator,
     JwtPresentationOptions, JwtPresentationValidationOptions, JwtPresentationValidator,
-    JwtPresentationValidatorUtils, SubjectHolderRelationship,
+    JwtPresentationValidatorUtils, KeyBindingJWTValidationOptions, SdJwtCredentialValidator,
+    SubjectHolderRelationship,
 };
 use identity_iota::credential::{JwtCredentialValidatorUtils, Presentation};
 use identity_iota::did::{CoreDID, DID};
-use identity_iota::iota::IotaDocument;
-use std::collections::HashMap;
-
-use colored::Colorize;
+use identity_iota::iota::{IotaDID, IotaDocument};
 use rand::Rng;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::io::{stdout, Write};
 use std::thread::sleep;
 use std::time::Duration;
@@ -29,6 +31,7 @@ use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::storage::{JwkDocumentExt, JwsSignatureOptions};
 
 use identity_iota::credential::JwtCredentialValidationOptions;
+use sd_jwt_payload::{KeyBindingJwtClaims, SdJwt, SdObjectDecoder, Sha256Hasher};
 
 pub struct CreateVPCommand<'a> {
     context: &'a AppContext,
@@ -64,13 +67,13 @@ impl Command for CreateVPCommand<'_> {
         // If `holder` is present, append its name to the title
         if let Some(vc) = &self.vc {
             title = format!(
-                "{} {} {}",
+                "{} | Holder: {} | Type: {} | SD: {}",
                 title,
-                "| Holder:",
-                vc.holder().name().bold().purple()
+                vc.holder().name().bold().purple(),
+                vc.tp().bold().purple(),
+                vc.sd().to_string().bold().purple()
             )
             .into();
-            title = format!("{} {} {}", title, "| Type:", vc.tp().bold().purple()).into();
         }
 
         Output::clear_screen();
@@ -90,24 +93,254 @@ impl CreateVPCommand<'_> {
     }
 
     async fn handle_vp_creation(&mut self) -> Result<ScreenEvent> {
-        let (mut verifier_document, mut verifier_did) = self.choose_did().await?;
-        self.confirm_verifier_selection(&mut verifier_did, &mut verifier_document)
-            .await;
-        self.verifier = Some(verifier_did);
         let mut vc = self.choose_vc()?;
         self.confirm_vc_selection(&mut vc).await;
         self.vc = Some(vc.clone());
 
-        let (vp_jwt, challenge) = self.create_vp(&verifier_document, &vc).await?;
-
-        self.verify_jwt_presentation(challenge, &vp_jwt).await?;
+        if vc.sd() {
+            self.handle_sd_vp(&vc).await?;
+        } else {
+            self.handle_normal_vp(&vc).await?;
+        }
 
         Input::wait_for_user_input("Press enter to continue");
 
         Ok(ScreenEvent::Success)
     }
 
-    async fn create_vp(&self, _verifier_document: &IotaDocument, vc: &Vc) -> Result<(Jwt, String)> {
+    async fn handle_sd_vp(&self, vc: &Vc) -> Result<()> {
+        let (verifier_document, _) = self.choose_did().await?;
+
+        let (sd_jwt, nonce) = self.create_vp_sd(&vc, &verifier_document).await?;
+        self.verify_sd_jwt_presentation(&sd_jwt, &verifier_document, nonce.as_str())
+            .await?;
+
+        Ok(())
+    }
+
+    async fn create_vp_sd(
+        &self,
+        vc: &Vc,
+        verifier_document: &IotaDocument,
+    ) -> Result<(String, String)> {
+        self.print_tile();
+
+        let sd_jwt = SdJwt::parse(vc.vc())?;
+        let disclosures: Vec<String> = self.handle_disclosures_selection(&sd_jwt.disclosures);
+        let nonce = self.exchange_challenge();
+
+        // // Print the disclosures from sd_jwt after decoding them
+        // let disclosures = sd_jwt
+        //     .disclosures
+        //     .clone()
+        //     .iter()
+        //     .map(|disclosure| utils::decode_base64(disclosure).unwrap())
+        //     .collect::<Vec<String>>();
+        //
+        // Output::print_options_vec_generic(&disclosures);
+        //
+        // println!("Selected Disclosures:");
+        // Output::print_options_vec_generic(&_disclosures);
+
+        print!("Holder is creating the KB-JWT...");
+        // Optionally, the holder can add a Key Binding JWT (KB-JWT). This is dependent on the verifier's policy.
+        // Issuing the KB-JWT is done by creating the claims set and setting the header `typ` value
+        // with the help of `KeyBindingJwtClaims`.
+        let binding_claims = KeyBindingJwtClaims::new(
+            &Sha256Hasher::new(),
+            sd_jwt.jwt.as_str().to_string(),
+            disclosures.clone(),
+            nonce.to_string(),
+            verifier_document.id().to_string(),
+            Timestamp::now_utc().to_unix(),
+        )
+        .to_json()?;
+        println!("Ok!");
+
+        print!("Holder is signing the JWT...");
+
+        // Setting the `typ` in the header is required.
+        let options = JwsSignatureOptions::new().typ(KeyBindingJwtClaims::KB_JWT_HEADER_TYP);
+        let holder_document = vc
+            .holder()
+            .resolve_to_iota_document(&self.context.resolver)
+            .await;
+        // Create the KB-JWT.
+        let kb_jwt: Jws = holder_document
+            .create_jws(
+                &self.context.storage,
+                &vc.holder().fragment(),
+                binding_claims.as_bytes(),
+                &options,
+            )
+            .await?;
+        // Create the final SD-JWT.
+        let sd_jwt_obj = SdJwt::new(sd_jwt.jwt, disclosures, Some(kb_jwt.into()));
+        println!("Ok!");
+
+        print!("Sending presentation (as JWT) to the verifier...");
+        let sd_jwt_presentation: String = sd_jwt_obj.presentation();
+        println!("Ok!");
+
+        Ok((sd_jwt_presentation, nonce.clone()))
+    }
+
+    async fn verify_sd_jwt_presentation(
+        &self,
+        sd_jwt_presentation: &String,
+        verifier_document: &IotaDocument,
+        nonce: &str,
+    ) -> Result<()> {
+        // //Print the SD-JWT-Presentation, The nonce, and the verifier's DID
+        // println!("SD-JWT-Presentation: {}", sd_jwt_presentation);
+        // println!("Nonce: {}", nonce);
+        // println!("Verifier's DID: {}", verifier_document.id());
+
+        print!("Verifier is parsing the JWT...");
+        let sd_jwt = SdJwt::parse(&sd_jwt_presentation)?;
+        let (issuer_document, holder_document) = self.get_issuer_and_holder(&sd_jwt.jwt).await?;
+        println!("Ok!");
+        println!("{}", sd_jwt);
+
+        print!("Verifier is validating the JWT...");
+        let decoder = SdObjectDecoder::new_with_sha256();
+        let validator =
+            SdJwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default(), decoder);
+        let validation = validator.validate_credential::<_, Object>(
+            &sd_jwt,
+            &issuer_document,
+            &JwtCredentialValidationOptions::default(),
+            FailFast::FirstError,
+        )?;
+        println!("Ok!");
+
+        print!("Verifier is validating the KB-JWT...");
+        let options = KeyBindingJWTValidationOptions::new()
+            .nonce(nonce)
+            .aud(&verifier_document.id().to_string());
+        let _kb_validation =
+            validator.validate_key_binding_jwt(&sd_jwt, &holder_document, &options)?;
+        println!("Ok!");
+
+        println!("JWT successfully validated");
+        utils::pretty_print_json("Decoded Credential", &validation.credential.to_string());
+
+        Ok(())
+    }
+
+    async fn get_issuer_and_holder(&self, jwt: &String) -> Result<(IotaDocument, IotaDocument)> {
+        let (issuer, holder) = utils::get_entities_from_jwt(jwt)?;
+        let issuer_document = self
+            .context
+            .resolver
+            .resolve(&IotaDID::parse(&issuer)?)
+            .await?;
+        let holder_document = self
+            .context
+            .resolver
+            .resolve(&IotaDID::parse(&holder)?)
+            .await?;
+
+        Ok((issuer_document, holder_document))
+    }
+
+    pub fn handle_disclosures_selection(&self, disclosures: &Vec<String>) -> Vec<String> {
+        let mut selected_disclosures: HashSet<usize> = HashSet::new();
+        let mut error: String = String::new();
+        let disclosures_options =
+            utils::extract_disclosure_keys(disclosures).unwrap_or(disclosures.clone()); // If the disclosures are not base64 encoded, use the original disclosures
+
+        loop {
+            self.print_tile();
+            self.print_disclosures(&disclosures_options, &selected_disclosures);
+
+            if !error.is_empty() {
+                println!("{}", error.red());
+            }
+
+            let user_input = Input::wait_for_user_input(
+                "Type the number to toggle a disclosure, or 'ok' to proceed:",
+            );
+
+            match self.handle_user_input(
+                user_input.trim(),
+                &disclosures_options,
+                &mut selected_disclosures,
+            ) {
+                Ok(_) => error.clear(),
+                Err(e) => error = e,
+            }
+
+            if user_input.trim() == "ok" {
+                return selected_disclosures
+                    .iter()
+                    .filter_map(|&index| disclosures.get(index).cloned())
+                    .collect();
+            }
+        }
+    }
+
+    fn print_disclosures<T: ToString>(
+        &self,
+        disclosures: &Vec<T>,
+        selected_disclosures: &HashSet<usize>,
+    ) {
+        println!("Available disclosures:");
+        Output::print_options_vec_generic(disclosures);
+
+        println!("\nSelected disclosures:");
+        if selected_disclosures.is_empty() {
+            println!("None");
+        } else {
+            for &index in selected_disclosures {
+                if let Some(disclosure) = disclosures.get(index) {
+                    println!("{}: {}", index + 1, disclosure.to_string());
+                }
+            }
+        }
+    }
+
+    fn handle_user_input<T: ToString>(
+        &self,
+        input: &str,
+        disclosures: &[T],
+        selected_disclosures: &mut HashSet<usize>,
+    ) -> Result<(), String> {
+        match input {
+            "ok" => Ok(()),
+            input => {
+                if let Ok(num) = input.parse::<usize>() {
+                    if num > 0 && num <= disclosures.len() {
+                        let index = num - 1;
+                        if selected_disclosures.contains(&index) {
+                            selected_disclosures.remove(&index);
+                        } else {
+                            selected_disclosures.insert(index);
+                        }
+                        Ok(())
+                    } else {
+                        Err(String::from(
+                            "Invalid number. Please select a valid option.",
+                        ))
+                    }
+                } else {
+                    Err(String::from(
+                        "Invalid input. Please enter a number or 'ok'.",
+                    ))
+                }
+            }
+        }
+    }
+
+    async fn handle_normal_vp(&self, vc: &Vc) -> Result<()> {
+        let (vp_jwt, challenge) = self.create_vp_normal(&vc).await?;
+        self.verify_jwt_presentation_normal(challenge, &vp_jwt)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn create_vp_normal(&self, vc: &Vc) -> Result<(Jwt, String)> {
         self.print_tile();
         let expires = self.define_expiration();
         let challenge = self.exchange_challenge();
@@ -143,7 +376,7 @@ impl CreateVPCommand<'_> {
         Ok((presentation_jwt, challenge))
     }
 
-    async fn verify_jwt_presentation(
+    async fn verify_jwt_presentation_normal(
         &self,
         challenge: String,
         presentation_jwt: &Jwt,
@@ -257,7 +490,7 @@ impl CreateVPCommand<'_> {
         uuid
     }
 
-    fn display_verifier_selection(&self, verifier_did: &Did) {
+    fn _display_verifier_selection(&self, verifier_did: &Did) {
         println!("{}\n", "Selected verifier".yellow().bold());
         println!("Name: {}", verifier_did.name());
         println!("DID: {}", verifier_did.did());
@@ -296,13 +529,13 @@ impl CreateVPCommand<'_> {
         }
     }
 
-    async fn confirm_verifier_selection(
+    async fn _confirm_verifier_selection(
         &self,
         verifier_did: &mut Did,
         verifier_document: &mut IotaDocument,
     ) {
         loop {
-            self.display_verifier_selection(&verifier_did);
+            self._display_verifier_selection(&verifier_did);
             println!(
                 "{} {} {} {} ",
                 "\nPress",

@@ -208,4 +208,10 @@ impl Output {
             println!("{}. {}", index + 1, option.0);
         }
     }
+
+    pub fn print_options_vec_generic<T: ToString>(ops: &Vec<T>) {
+        for (index, option) in ops.iter().enumerate() {
+            println!("{}. {}", index + 1, option.to_string());
+        }
+    }
 }

@@ -1,6 +1,3 @@
-// Copyright 2020-2023 IOTA Stiftung
-// SPDX-License-Identifier: Apache-2.0
-
 use anyhow::Context;
 use std::fs::File;
 use std::io;
@@ -33,6 +30,9 @@ use serde_json::Value;
 
 use super::config;
 use super::config::Config;
+
+use base64::engine::general_purpose;
+use base64::Engine;
 
 pub type MemStorage = Storage<JwkMemStore, KeyIdMemstore>;
 
@@ -331,7 +331,7 @@ pub fn read_file_ignoring_comments(file_path: &str) -> anyhow::Result<Vec<String
 
 pub(crate) fn edit_file(editor: String, path: &String) -> anyhow::Result<()> {
     if editor == "code" {
-        let status = std::process::Command::new(editor)
+        let status = Command::new(editor)
             .arg("--wait")
             .arg(&path)
             .status()
@@ -342,7 +342,7 @@ pub(crate) fn edit_file(editor: String, path: &String) -> anyhow::Result<()> {
             return Err(anyhow::anyhow!("Failed to open editor"));
         }
     } else {
-        let status = std::process::Command::new(editor)
+        let status = Command::new(editor)
             .arg(&path)
             .status()
             .expect("Failed to open editor");
@@ -397,4 +397,97 @@ pub fn is_command_available(command: &str) -> bool {
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
+}
+
+pub fn add_base64_padding(encoded: &str) -> String {
+    let padding_needed = (4 - (encoded.len() % 4)) % 4;
+    let mut padded = encoded.to_string();
+    padded.extend(std::iter::repeat('=').take(padding_needed));
+    padded
+}
+
+/// Decodes the disclosures and extracts the second field (key).
+///
+/// # Arguments
+/// - `disclosures`: A vector of base64url-encoded strings, each representing a disclosure.
+///
+/// # Returns
+/// - A vector of strings containing the second field from each disclosure.
+pub fn extract_disclosure_keys(disclosures: &Vec<String>) -> anyhow::Result<Vec<String>> {
+    let mut extracted_fields = Vec::new();
+
+    for disclosure in disclosures {
+        let padded = add_base64_padding(disclosure);
+        // Decode the base64url-encoded disclosure
+        let decoded = general_purpose::URL_SAFE.decode(padded)?;
+        // Parse the JSON object
+        let json: Value = serde_json::from_slice(&decoded)?;
+
+        // Ensure the JSON is an array and has at least two elements
+        if let Some(array) = json.as_array() {
+            if array.len() > 1 {
+                if let Some(second_field) = array.get(1) {
+                    if let Some(second_field_str) = second_field.as_str() {
+                        extracted_fields.push(second_field_str.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(extracted_fields)
+}
+
+pub fn decode_base64(encoded: &str) -> anyhow::Result<String> {
+    // Add padding if necessary
+    let padded = add_base64_padding(encoded);
+
+    // Decode the padded Base64 string
+    let decoded = general_purpose::URL_SAFE.decode(padded)?;
+
+    // Convert the decoded bytes to a String (assumes it's valid UTF-8)
+    let decoded_string = String::from_utf8(decoded)?;
+
+    Ok(decoded_string)
+}
+
+/// Extracts the issuer and subject from a JWT.
+///
+/// # Arguments
+///
+/// * `jwt` - A reference to a `String` containing the JWT.
+///
+/// # Returns
+///
+/// * `anyhow::Result<(String, String)>` - A result containing a tuple with the **issuer** and **subject** as strings, or an error.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The JWT does not have exactly three parts.
+/// * The payload cannot be decoded from Base64.
+/// * The payload is not valid JSON.
+/// * The issuer (`iss`) or subject (`sub`) claims are missing or not strings.
+pub fn get_entities_from_jwt(jwt: &String) -> anyhow::Result<(String, String)> {
+    // Split the JWT into its three parts
+    let parts: Vec<&str> = jwt.split('.').collect();
+    if parts.len() != 3 {
+        return Err(anyhow::anyhow!("Invalid JWT"));
+    }
+    let encoded_payload = parts[1]; // JWT payload is the second part
+
+    // Decode the payload from Base64
+    let decoded_payload = decode_base64(encoded_payload)?;
+    // Parse the payload as JSON
+    let payload_json: Value = serde_json::from_str(&decoded_payload)?;
+    // Access specific claims
+    let Some(issuer) = payload_json.get("iss").and_then(|v| v.as_str()) else {
+        return Err(anyhow::anyhow!("Could not parse JWT, and get issuer"));
+    };
+    let Some(subject) = payload_json.get("sub").and_then(|v| v.as_str()) else {
+        return Err(anyhow::anyhow!("Could not parse JWT, and get holder"));
+    };
+
+    // Return the issuer and subject as a tuple
+    Ok((issuer.to_string(), subject.to_string()))
 }

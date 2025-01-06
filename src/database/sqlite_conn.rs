@@ -46,7 +46,6 @@ impl SQLiteConnector {
     }
 
     fn build_vc_model(&self, row: &Row) -> Result<Vc, Error> {
-        println!("Row: {:?}", row);
         let created_at: String = row.get(6)?;
 
         // print the type of row.get(5) to see if it is a boolean

@@ -35,5 +35,4 @@ impl MainMenuCommand {
 
         MainMenuCommand { options }
     }
-       
 }
