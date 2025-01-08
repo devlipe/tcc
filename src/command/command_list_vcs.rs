@@ -46,13 +46,22 @@ impl ListVCsCommand<'_> {
         // Add rows for each DID
         let mut row_number = fist_row_index;
         for vc in vcs {
+            let vc_jwt = vc.vc();
+
+            // Extract the first 10 and last 10 characters
+            let short_vc_text = format!(
+                "{} [.../{}] {}",
+                &vc_jwt[..20],                // First 10 characters
+                vc_jwt.len() - 40,             // Number of characters omitted
+                &vc_jwt[vc_jwt.len() - 20..]  // Last 10 characters
+            );
             table.add_row(vec![
                 Cell::new(row_number),
                 Cell::new(vc.holder().name()),
                 Cell::new(vc.issuer().name()),
                 Cell::new(vc.tp()),
                 Cell::new(vc.sd().to_string()),
-                Cell::new(vc.vc()),
+                Cell::new(short_vc_text),
                 Cell::new(vc.created_at()),
                 Cell::new(vc.id()),
             ]);

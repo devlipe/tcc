@@ -200,7 +200,6 @@ impl CreateVPCommand<'_> {
         let sd_jwt = SdJwt::parse(&sd_jwt_presentation)?;
         let (issuer_document, holder_document) = self.get_issuer_and_holder(&sd_jwt.jwt).await?;
         println!("Ok!");
-        println!("{}", sd_jwt);
 
         print!("Verifier is validating the JWT...");
         let decoder = SdObjectDecoder::new_with_sha256();
