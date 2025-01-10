@@ -44,17 +44,19 @@ impl<'a> CreateVCSDCommand<'a> {
         }
     }
 
-    pub async fn handle_vc_sd_creation(&self) -> anyhow::Result<ScreenEvent> {
+    pub async fn handle_vc_sd_creation(&self) -> Result<ScreenEvent> {
         let (issuer_document, issuer, holder_document, holder) = self.select_dids().await?;
 
         let (path, template): (String, String) = self.create_vc.create_credential()?;
 
         let credential_type = Output::snake_to_camel_case(&template);
 
-        let json: Value = utils::build_json_credential(holder_document, &path)?;
+        let mut json: Value = utils::read_json_file(&path)?;
 
-        let json_paths = self.get_json_sd_paths(template, &json);
-        
+        let json_paths = self.get_json_sd_paths(template, &json, &path);
+
+        json = utils::insert_holder_did(&mut json, holder_document.id().as_str())?;
+
         let subject: Subject = Subject::from_json_value(json)?;
 
         let credential: Credential = CredentialBuilder::default()
@@ -76,7 +78,7 @@ impl<'a> CreateVCSDCommand<'a> {
                 &JwsSignatureOptions::default(),
             )
             .await?;
-        
+
         let disclosures: Vec<String> = disclosures
             .into_iter()
             .map(|disclosure| disclosure.to_string())
@@ -119,9 +121,15 @@ impl<'a> CreateVCSDCommand<'a> {
         Ok((encoded_payload, disclosures))
     }
 
-    fn get_json_sd_paths(&self, template: String, json: &Value) -> Vec<String> {
+    fn get_json_sd_paths(
+        &self,
+        template: String,
+        edited_json: &Value,
+        template_path: &String,
+    ) -> Vec<String> {
         let path = Self::get_sd_file_path(&template);
-        let json_paths = utils::generate_json_paths(&json, "/vc/credentialSubject");
+        let json_paths = utils::generate_json_paths(&edited_json, "/vc/credentialSubject");
+        let template_json = utils::read_json_file(template_path).unwrap();
 
         // check if the file exists
         if !utils::file_exists(&path) {
@@ -132,9 +140,20 @@ impl<'a> CreateVCSDCommand<'a> {
             utils::prepend_comment_to_file(&mut file).unwrap();
             utils::write_vec_to_file(&mut file, &json_paths).unwrap();
             println!("File created!");
+        } else if !utils::have_same_structure(&edited_json, &template_json) {
+            println!("The edited JSON does not have the same structure as the template");
+            println!("Creating a new file...");
+            // Remove the file
+            std::fs::remove_file(&path).unwrap();
+            let mut file = File::create(&path).unwrap();
+
+            utils::prepend_comment_to_file(&mut file).unwrap();
+            utils::write_vec_to_file(&mut file, &json_paths).unwrap();
+            println!("File created!");
         }
         self.edit_sd_paths_file(&path);
-        let sd_paths = self.get_sd_paths_from_file(path);
+        let sd_paths = self.get_sd_paths_from_file(&path);
+        std::fs::remove_file(&path).unwrap();
         sd_paths
     }
 
@@ -154,7 +173,7 @@ impl<'a> CreateVCSDCommand<'a> {
         }
     }
 
-    fn get_sd_paths_from_file(&self, path: String) -> Vec<String> {
+    fn get_sd_paths_from_file(&self, path: &String) -> Vec<String> {
         let json_paths = utils::read_file_ignoring_comments(&path).unwrap();
         json_paths
     }

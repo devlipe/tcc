@@ -11,6 +11,8 @@ pub trait Config {
 pub struct VariablesConfig {
     // Store configuration in a key-value manner using a HashMap
     config: HashMap<String, String>,
+    vc_table_size: usize,
+    did_table_size: usize,
 }
 
 // Singleton instance of VariablesConfig
@@ -53,12 +55,22 @@ static CONFIG: Lazy<VariablesConfig> = Lazy::new(|| {
                 env::var("CREDENTIALS_SD_DIRECTORY").expect("CREDENTIALS_SD_DIRECTORY must be set"),
             ),
         ]),
+        vc_table_size: 10,
+        did_table_size: 10,
     }
 });
 
 impl VariablesConfig {
     pub fn get() -> &'static Self {
         &CONFIG
+    }
+
+    pub fn vc_table_size(&self) -> usize {
+        self.vc_table_size
+    }
+
+    pub fn did_table_size(&self) -> usize {
+        self.did_table_size
     }
 }
 

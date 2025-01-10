@@ -97,17 +97,21 @@ impl Output {
         })
     }
 
-    pub fn display_with_pagination<T: Clone>(
+    pub fn display_with_pagination<'a, T: Clone>(
         items: &Vec<T>,
         display_fn: fn(&Vec<T>, usize),
         page_size: usize,
         selectable: bool,
+        print_title: Option<Box<dyn Fn() + 'a>>,
     ) -> usize {
         let total_pages = (items.len() + page_size - 1) / page_size;
         let mut current_page = 0;
         let mut error = String::new();
 
         loop {
+            if let Some(print_title) = print_title.as_ref() {
+                print_title();
+            }
             // Calculate the start and end indices for the current page
             let start_index = current_page * page_size;
             let end_index = usize::min(start_index + page_size, items.len());
@@ -202,7 +206,7 @@ impl Output {
             );
         }
     }
-    
+
     pub fn print_options_vec(ops: &Vec<(String, ScreenEvent)>) {
         for (index, option) in ops.iter().enumerate() {
             println!("{}. {}", index + 1, option.0);

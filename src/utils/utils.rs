@@ -1,7 +1,8 @@
 use anyhow::Context;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, Read, Write};
+use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -200,40 +201,27 @@ pub fn random_credential_path() -> PathBuf {
     file.to_owned()
 }
 
-/// Builds a JSON credential by reading a file, parsing its content, and adding the holder's DID.
-///
-/// # Arguments
-///
-/// * `holder_did` - An `IotaDocument` representing the holder's DID.
-/// * `path` - A reference to a `String` containing the path to the JSON file.
-///
-/// # Returns
-///
-/// * `anyhow::Result<Value>` - A result containing the modified JSON value or an error.
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// * The file cannot be opened or read.
-/// * The file content is not a valid JSON object.
-/// * The JSON parsing fails.
-pub fn build_json_credential(holder_did: IotaDocument, path: &String) -> anyhow::Result<Value> {
-    // Read file content
-    let mut context = String::new();
-    File::open(&path)?.read_to_string(&mut context)?;
 
-    // Parse to JSON
-    let mut json: Value = serde_json::from_str(&context)?;
 
-    // Ensure it's a JSON object
-    if let Value::Object(ref mut map) = json {
-        // Add the `id` key with the holder's ID
-        map.insert("id".to_string(), Value::String(holder_did.id().to_string()));
+/// Insert the holder's DID into a JSON object.
+/// This function is used to add the `id` field to a JSON object.
+/// The `id` field is used to specify the holder's DID.
+/// The function will return an error if the JSON object is not a map.
+/// The function will return an error if the `id` field already exists in the JSON object.
+/// The function will return an error if the holder's DID is not a string.
+/// The function will return the modified JSON object with the `id` field.
+pub fn insert_holder_did(json: &mut Value, holder_did: &str) -> anyhow::Result<Value> {
+    if let Value::Object(map) = json {
+        if map.contains_key("id") {
+            anyhow::bail!("The JSON object already contains an 'id' field");
+        }
+
+        map.insert("id".to_string(), Value::String(holder_did.to_string()));
     } else {
-        anyhow::bail!("File content is not a valid JSON object");
+        anyhow::bail!("The JSON object is not a map");
     }
 
-    Ok(json)
+    Ok(json.clone())
 }
 
 /// Recursively generates JSON paths from a given JSON object.
@@ -270,6 +258,30 @@ pub fn generate_json_paths(json: &Value, prefix: &str) -> Vec<String> {
     }
 
     paths
+}
+
+/// Compares the structure of two JSON values by generating and comparing their paths.
+///
+/// # Arguments
+///
+/// * `json1` - A reference to the first JSON value.
+/// * `json2` - A reference to the second JSON value.
+///
+/// # Returns
+///
+/// * `bool` - Returns `true` if both JSON values have the same structure, otherwise `false`.
+pub fn have_same_structure(json1: &Value, json2: &Value) -> bool {
+    let paths1: HashSet<String> = generate_json_paths(json1, "").into_iter().collect();
+    let paths2: HashSet<String> = generate_json_paths(json2, "").into_iter().collect();
+
+    paths1 == paths2
+}
+
+pub fn read_json_file(path: &str) -> anyhow::Result<Value> {
+    let file = File::open(path)?;
+    let reader = io::BufReader::new(file);
+    let json: Value = serde_json::from_reader(reader)?;
+    Ok(json)
 }
 
 pub fn remove_file_extension(file_name: &str) -> String {
@@ -479,6 +491,7 @@ pub fn get_entities_from_jwt(jwt: &String) -> anyhow::Result<(String, String)> {
     // Decode the payload from Base64
     let decoded_payload = decode_base64(encoded_payload)?;
     // Parse the payload as JSON
+    pretty_print_json("Payload", &decoded_payload);
     let payload_json: Value = serde_json::from_str(&decoded_payload)?;
     // Access specific claims
     let Some(issuer) = payload_json.get("iss").and_then(|v| v.as_str()) else {

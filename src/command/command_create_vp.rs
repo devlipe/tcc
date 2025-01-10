@@ -1,6 +1,6 @@
 use crate::{
     utils, AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent,
-    Vc,
+    VariablesConfig, Vc,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -128,19 +128,6 @@ impl CreateVPCommand<'_> {
         let sd_jwt = SdJwt::parse(vc.vc())?;
         let disclosures: Vec<String> = self.handle_disclosures_selection(&sd_jwt.disclosures);
         let nonce = self.exchange_challenge();
-
-        // // Print the disclosures from sd_jwt after decoding them
-        // let disclosures = sd_jwt
-        //     .disclosures
-        //     .clone()
-        //     .iter()
-        //     .map(|disclosure| utils::decode_base64(disclosure).unwrap())
-        //     .collect::<Vec<String>>();
-        //
-        // Output::print_options_vec_generic(&disclosures);
-        //
-        // println!("Selected Disclosures:");
-        // Output::print_options_vec_generic(&_disclosures);
 
         print!("Holder is creating the KB-JWT...");
         // Optionally, the holder can add a Key Binding JWT (KB-JWT). This is dependent on the verifier's policy.
@@ -431,6 +418,7 @@ impl CreateVPCommand<'_> {
     }
 
     fn exchange_challenge(&self) -> String {
+        self.print_tile();
         println!("Exchanging challenge with verifier and Holder...");
         let challenge = self.generate_uuid4();
         challenge
@@ -572,7 +560,13 @@ impl CreateVPCommand<'_> {
 
     async fn get_verifier_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
-        let index = Output::display_with_pagination(dids, Self::choose_verifier_table, 15, true);
+        let index = Output::display_with_pagination(
+            dids,
+            Self::choose_verifier_table,
+            VariablesConfig::get().did_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
         let did: Did = dids.get(index - 1).unwrap().clone();
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
@@ -598,7 +592,13 @@ impl CreateVPCommand<'_> {
     }
 
     fn get_vc(&self, vcs: &Vec<Vc>) -> Result<Vc> {
-        let index = Output::display_with_pagination(&vcs, Self::choose_vc_to_vp_table, 2, true);
+        let index = Output::display_with_pagination(
+            &vcs,
+            Self::choose_vc_to_vp_table,
+            VariablesConfig::get().vc_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
         let vc = vcs
             .get(index - 1)
             .map_or(Err(anyhow::anyhow!("Invalid index")), |vc| Ok(vc.clone()));

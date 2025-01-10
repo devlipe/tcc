@@ -58,7 +58,9 @@ impl CreateVCNormalCommand<'_> {
 
         let credential_type = Output::snake_to_camel_case(&template);
 
-        let json: Value = utils::build_json_credential(holder_document, &path)?;
+        let mut json: Value = utils::read_json_file(&path)?;
+
+        json = utils::insert_holder_did(&mut json, holder_document.id().as_str())?;
 
         let subject: Subject = Subject::from_json_value(json)?;
 
@@ -105,7 +107,6 @@ impl CreateVCNormalCommand<'_> {
                 "{}",
                 "No DIDs found. Please create a DID first.".red().bold()
             );
-            Input::wait_for_user_input("Press any key to continue...");
             return Err(anyhow::anyhow!("No DIDs found"));
         }
 
@@ -279,7 +280,13 @@ impl CreateVCNormalCommand<'_> {
 
     async fn get_issuer_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
-        let index = Output::display_with_pagination(dids, Self::choose_issuer_table, 15, true);
+        let index = Output::display_with_pagination(
+            dids,
+            Self::choose_issuer_table,
+            VariablesConfig::get().did_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
         let did: Did = self.get_did(dids, index);
         (
             did.resolve_to_iota_document(&self.context.resolver).await,
@@ -294,7 +301,13 @@ impl CreateVCNormalCommand<'_> {
 
     async fn get_holder_did(&self, dids: &Vec<Did>) -> (IotaDocument, Did) {
         self.print_tile();
-        let index = Output::display_with_pagination(dids, Self::choose_holder_table, 15, true);
+        let index = Output::display_with_pagination(
+            dids,
+            Self::choose_holder_table,
+            VariablesConfig::get().did_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
 
         let did: Did = self.get_did(dids, index);
         (

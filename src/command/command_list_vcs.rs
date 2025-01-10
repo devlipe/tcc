@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, Output, ScreenEvent, Vc};
+use crate::{AppContext, Command, Output, ScreenEvent, VariablesConfig, Vc};
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{Cell, Table};
 
@@ -8,12 +8,17 @@ pub struct ListVCsCommand<'a> {
 
 impl Command for ListVCsCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
-        self.print_tile();
 
         let vcs = self.context.db.get_stored_vcs();
         match vcs {
             Ok(vcs) => {
-                Output::display_with_pagination(&vcs, Self::display_vcs_table, 2, false);
+                Output::display_with_pagination(
+                    &vcs,
+                    Self::display_vcs_table,
+                    VariablesConfig::get().vc_table_size(),
+                    false,
+                    Some(Box::new(|| self.print_tile())),
+                );
                 ScreenEvent::Success
             }
             Err(e) => {
@@ -51,9 +56,9 @@ impl ListVCsCommand<'_> {
             // Extract the first 10 and last 10 characters
             let short_vc_text = format!(
                 "{} [.../{}] {}",
-                &vc_jwt[..20],                // First 10 characters
-                vc_jwt.len() - 40,             // Number of characters omitted
-                &vc_jwt[vc_jwt.len() - 20..]  // Last 10 characters
+                &vc_jwt[..100],                // First 10 characters
+                vc_jwt.len() - 200,            // Number of characters omitted
+                &vc_jwt[vc_jwt.len() - 100..]  // Last 10 characters
             );
             table.add_row(vec![
                 Cell::new(row_number),

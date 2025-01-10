@@ -1,6 +1,6 @@
 use crate::{
     AppContext, Command, Did, Input, ListDIDsCommand, ListVCsCommand, Output, ScreenEvent,
-    Vc,
+    VariablesConfig, Vc,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -134,8 +134,13 @@ impl VerifyVCCommand<'_> {
     }
 
     fn get_vc(&self, vcs: &Vec<Vc>) -> Result<Vc> {
-        self.print_tile();
-        let index = Output::display_with_pagination(&vcs, Self::choose_vc_table, 2, true);
+        let index = Output::display_with_pagination(
+            &vcs,
+            Self::choose_vc_table,
+            VariablesConfig::get().vc_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
         let vc = vcs.get(index - 1);
         match vc {
             Some(vc) => Ok(vc.clone()),
@@ -155,8 +160,13 @@ impl VerifyVCCommand<'_> {
     }
 
     async fn get_did_document(&self, dids: &Vec<Did>) -> Result<IotaDocument> {
-        self.print_tile();
-        let index = Output::display_with_pagination(&dids, Self::choose_did_table, 15, true);
+        let index = Output::display_with_pagination(
+            &dids,
+            Self::choose_did_table,
+            VariablesConfig::get().did_table_size(),
+            true,
+            Some(Box::new(|| self.print_tile())),
+        );
         let did = dids.get(index - 1);
         match did {
             Some(did) => Ok(did.resolve_to_iota_document(&self.context.resolver).await),

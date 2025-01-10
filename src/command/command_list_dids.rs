@@ -1,4 +1,4 @@
-use crate::{AppContext, Command, Did, Output, ScreenEvent};
+use crate::{AppContext, Command, Did, Output, ScreenEvent, VariablesConfig};
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{Cell, Table};
 
@@ -8,12 +8,17 @@ pub struct ListDIDsCommand<'a> {
 
 impl Command for ListDIDsCommand<'_> {
     fn execute(&mut self) -> ScreenEvent {
-        self.print_tile();
 
         let dids = self.context.db.get_stored_dids();
         match dids {
             Ok(dids) => {
-                Output::display_with_pagination(&dids, Self::display_dids_table, 15, false);
+                Output::display_with_pagination(
+                    &dids,
+                    Self::display_dids_table,
+                    VariablesConfig::get().did_table_size(),
+                    false,
+                    Some(Box::new(|| self.print_tile())),
+                );
                 ScreenEvent::Success
             }
             Err(e) => {
