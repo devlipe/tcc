@@ -1,0 +1,16 @@
+{
+    "nome": "nome do portador",
+    "rg": "123456789",
+    "data_de_nascimento": "01/01/2000",
+    "data_de_expedicao": "01/01/2010",
+    "orgao_emissor": "SSP",
+    "foto": "https://www.example.com/foto.jpg",
+    "filiacao": {
+        "pai": "nome do pai",
+        "mae": "nome da mãe"
+    },
+    "naturalidade": {
+        "cidade": "cidade",
+        "estado": "estado"
+    }
+}

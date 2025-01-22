@@ -54,7 +54,7 @@ impl App {
             let event = command.execute();
 
             // Check if the event is Exit and the State is ExitAppWorkflow, if so, break the loop
-            if event == ScreenEvent::Exit && *self.fsm.state() == ScreenState::ExitAppWorkflow {
+            if event == ScreenEvent::Exit   && *self.fsm.state() == ScreenState::ExitAppWorkflow {
                 break;
             }
 

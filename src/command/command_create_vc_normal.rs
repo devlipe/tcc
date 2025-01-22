@@ -84,6 +84,11 @@ impl CreateVCNormalCommand<'_> {
         let _decoded_credential =
             VerifyVCCommand::verify_normal_vc(&credential_jwt, &issuer_document)?;
 
+        utils::pretty_print_json(
+            "VC Created",
+            _decoded_credential.credential.to_string().as_str(),
+        );
+
         // Save the credential to the database
         self.context.db.save_vc(
             &credential_jwt.as_str(),
