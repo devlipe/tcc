@@ -1,0 +1,17 @@
+{
+    "nome": "Felipe Pereira Ferreira",
+    "rg": "MG-52.154.614",
+    "data_de_nascimento": "25/05/2002",
+    "data_de_expedicao": "29/12/2015",
+    "orgao_emissor": "PC-MG",
+    "cpf": "789.581.465-78 HAVIAMOS ESQUECIDO DE ADICIONAR O CPF",
+    "foto": "https://www.example.com/foto.jpg",
+    "filiacao": {
+        "pai": "Sérgio Geraldo Ferreira",
+        "mae": "Andrea Pereira Ferreira"
+    },
+    "naturalidade": {
+        "cidade": "Belo Horizonte",
+        "estado": "MG"
+    }
+}
